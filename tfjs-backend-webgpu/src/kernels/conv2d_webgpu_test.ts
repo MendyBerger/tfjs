@@ -34,10 +34,15 @@ function generateCaseInputs(totalSizeTensor: number, totalSizeFilter: number) {
 }
 
 describeWebGPU('im2col as separate shader', () => {
-  beforeAll(() => {
-    tf.env().set('WEBGPU_CONV_SEPARATE_IM2COL_SHADER', true);
-  });
+  it('clipbyvec4t basic vec4', async () => {
+    const a = tf.tensor1d([3, -1, 0, 100, -7, 2, 5, NaN]);
+    const min = -1;
+    const max = 50;
 
+    const result = tf.clipByValue(a, min, max);
+
+    test_util.expectArraysClose(await result.data(), [3, -1, 0, 50, -1, 2, 5, NaN]);
+  });
   it('x=[1,4,4,1] f=[1,1,1,3] s=2 d=1 p=same', async () => {
     const inputDepth = 1;
     const inputShape: [number, number, number] = [4, 4, inputDepth];

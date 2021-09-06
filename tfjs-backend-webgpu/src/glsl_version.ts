@@ -22,17 +22,7 @@ type GLSL = {
 export function getGlslDifferences(): GLSL {
   const defineSpecialNaN = `
       bool isnan_custom(float val) {
-        // logical or has undefined behavior, https://bugs.chromium.org/p/tint/issues/detail?id=976.
-        if (val > 0.0) {
-          return false;
-        }
-        if (val < 0.0) {
-          return false;
-        }
-        if (val == 0.0) {
-          return false;
-        }
-        return true;
+        return (val > 0.0 || val < 0.0) ? false : val != 0.0;
       }
 
       bvec4 isnan_custom(vec4 val) {
