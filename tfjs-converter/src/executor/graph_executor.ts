@@ -293,7 +293,7 @@ export class GraphExecutor implements FunctionExecutor {
             if (tensor && !tensor.kept && !tensorsToKeep.has(tensor.id)) {
               const count = intermediateTensorConsumerCount[tensor.id];
               if (count === 1) {
-                tensor.dispose();
+                // tensor.dispose();
                 delete intermediateTensorConsumerCount[tensor.id];
               } else if (count != null) {
                 // only intermediate nodes has count set, inputs and weights are
@@ -391,6 +391,17 @@ export class GraphExecutor implements FunctionExecutor {
     return this._executeAsync(
         mappedInputs, this.outputNodes, true, tensorArrayMap, tensorListMap);
   }
+
+  async printTensors(tensorsMap: NamedTensorsMap) {
+    const keysOfTensors = Object.keys(tensorsMap);
+    for (let i = 0; i < keysOfTensors.length; i++) {
+      console.warn(keysOfTensors[i]);
+      for (let j = 0; j < tensorsMap[keysOfTensors[i]].length; j++) {
+        console.warn(await (tensorsMap[keysOfTensors[i]][j]).data());
+      }
+    }
+  }
+
   /**
    * When there are control flow nodes in the graph, the graph execution use
    * ExecutionContext to keep track of the frames and loop iterators.
@@ -442,6 +453,7 @@ export class GraphExecutor implements FunctionExecutor {
           outputNodeNames, intermediateTensorConsumerCount, usedNodes);
       await Promise.all(promises);
     }
+    await this.printTensors(tensorsMap);
     if (dynamicNode == null && !isFunctionExecution) {
       console.warn(
           `This model execution did not contain any nodes with control flow ` +
