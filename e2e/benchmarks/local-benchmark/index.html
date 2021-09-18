@@ -205,7 +205,7 @@ limitations under the License.
 
           await tf.setBackend(state.backend);
           await showMsg(`Runing on ${state.backend}`);
-          const prediction = predict(model, inferenceInput);
+          const prediction = await predict(model, inferenceInput);
           predictionData = await getPredictionData(prediction);
         } catch (e) {
           showMsg('Error: ' + e.message);

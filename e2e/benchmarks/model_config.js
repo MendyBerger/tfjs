@@ -84,7 +84,7 @@ const benchmarks = {
     },
     predictFunc: () => {
       const input = tf.randomNormal([1, 224, 224, 3]);
-      return model => model.predict(input);
+      return model => model.executeAsync(input);
     }
   },
   'mesh_128': {
@@ -97,7 +97,7 @@ const benchmarks = {
     predictFunc: () => {
       const zeros = tf.zeros([1, 128, 128, 3]);
       return model => {
-        return model.predict(zeros)[0];
+        return model.executeAsync(zeros)[0];
       };
     },
   },
@@ -285,7 +285,7 @@ const benchmarks = {
     predictFunc: (inputResolution = 128) => {
       const input = tf.randomNormal([1, inputResolution, inputResolution, 3]);
       return model => {
-        return model.predict(input);
+        return model.executeAsync(input);
       };
     },
   },

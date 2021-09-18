@@ -293,7 +293,8 @@ export class GraphExecutor implements FunctionExecutor {
             if (tensor && !tensor.kept && !tensorsToKeep.has(tensor.id)) {
               const count = intermediateTensorConsumerCount[tensor.id];
               if (count === 1) {
-                tensor.dispose();
+                // For debug purpose, do not dispose.
+                // tensor.dispose();
                 delete intermediateTensorConsumerCount[tensor.id];
               } else if (count != null) {
                 // only intermediate nodes has count set, inputs and weights are
@@ -441,6 +442,13 @@ export class GraphExecutor implements FunctionExecutor {
           inputNodes, stack, context, tensorsMap, added, tensorsToKeep,
           outputNodeNames, intermediateTensorConsumerCount, usedNodes);
       await Promise.all(promises);
+    }
+    const keysOfAll = Object.keys(tensorsMap);
+    for (let i = 0; i < keysOfAll.length; i++) {
+      console.log(
+          tensorsMap[keysOfAll[i]].length + ', i=' + i +
+          ', keysOfAll[i]=' + keysOfAll[i]);
+      console.log(await (tensorsMap[keysOfAll[i]][0]).data());
     }
     if (dynamicNode == null && !isFunctionExecution) {
       console.warn(
