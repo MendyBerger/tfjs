@@ -338,6 +338,14 @@ export class GraphModel implements InferenceModel {
     const result = this.executor.execute(inputs, outputs);
     return result.length > 1 ? result : result[0];
   }
+  
+  async execute2(inputs: Tensor|Tensor[]|NamedTensorMap, outputs?: string|string[]):
+      Promise<Tensor|Tensor[]> {
+    inputs = this.normalizeInputs(inputs);
+    outputs = this.normalizeOutputs(outputs);
+    const result = await this.executor.execute2(inputs, outputs);
+    return result.length > 1 ? result : result[0];
+  }
   /**
    * Executes inference for the model for given input tensors in async
    * fashion, use this method when your model contains control flow ops.

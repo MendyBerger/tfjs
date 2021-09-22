@@ -82,9 +82,20 @@ const benchmarks = {
           'https://storage.googleapis.com/learnjs-data/mobilenet_v2_100_fused/model.json';
       return tf.loadGraphModel(url);
     },
-    predictFunc: () => {
-      const input = tf.randomNormal([1, 224, 224, 3]);
-      return model => model.executeAsync(input);
+    predictFunc: (input) => {
+      //const input = tf.randomNormal([1, 224, 224, 3]);
+      // module_apply_default/MobilenetV2/expanded_conv_11/add
+      // return model => model.execute(input,'module_apply_default/MobilenetV2/Conv/Relu6');
+      // return model => model.execute(input,'module_apply_default/hub_input/Mul');
+      return model => model.predict(input);
+    },
+    predictAsyncFunc: (input) => {
+      //const input = tf.randomNormal([1, 224, 224, 3]);
+      
+      // return model => model.execute2(input, 'module_apply_default/MobilenetV2/Conv/Relu6');
+      // return model => model.execute2(input, 'module_apply_default/hub_input/Mul');
+      return model => model.execute2(input);
+      //return model => model.executeAsync(input);
     }
   },
   'mesh_128': {
@@ -111,7 +122,7 @@ const benchmarks = {
     predictFunc: () => {
       const zeros = tf.zeros([1, 128, 128, 3]);
       return model => {
-        return model.predict(zeros);
+        return model.executeAsync(zeros);
       };
     },
   },
@@ -124,7 +135,7 @@ const benchmarks = {
     predictFunc: () => {
       const zeros = tf.zeros([1, 256, 256, 3]);
       return model => {
-        return model.predict(zeros);
+        return model.executeAsync(zeros);
       };
     },
   },
@@ -137,7 +148,7 @@ const benchmarks = {
     predictFunc: () => {
       const zeros = tf.zeros([1, 256, 256, 3]);
       return model => {
-        return model.predict(zeros);
+        return model.executeAsync(zeros);
       };
     },
   },

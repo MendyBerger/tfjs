@@ -17,7 +17,7 @@
 
 async function convertTensorToData(tensor) {
   const data = await tensor.data();
-  tensor.dispose();
+  //tensor.dispose();
   return data;
 }
 

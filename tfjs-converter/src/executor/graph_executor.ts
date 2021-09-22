@@ -256,6 +256,77 @@ export class GraphExecutor implements FunctionExecutor {
     });
   }
 
+  async execute2(inputs: NamedTensorMap, outputs?: string[]): Promise<Tensor[]> {
+    inputs = this.mapInputs(inputs);
+    const names = Object.keys(inputs).sort();
+    this.checkInputs(inputs);
+    this.checkInputShapeAndType(inputs);
+    outputs = this.mapOutputs(outputs);
+    this.checkOutputs(outputs);
+    const inputNodes =
+        names.map(name => this.graph.nodes[parseNodeName(name)[0]]);
+    const outputNodeNames = outputs.map(name => parseNodeName(name)[0]);
+    let outputNodes = outputNodeNames.map(name => this.graph.nodes[name]);
+
+    // If no outputs are specified, then use the default outputs of the model.
+    if (outputNodes.length === 0) {
+      outputNodes = this._outputs;
+    }
+
+    const compilationKey = this.getCompilationKey(inputNodes, outputNodes);
+
+    // Do nothing if the compiled graph cache contains the input.
+    let orderedNodes = this.compiledMap.get(compilationKey);
+    if (orderedNodes == null) {
+      orderedNodes = this.compile(inputs, outputNodes);
+      this.compiledMap.set(compilationKey, orderedNodes);
+    }
+
+    const tensorArrayMap: TensorArrayMap = {};
+    const tensorListMap: TensorListMap = {};
+
+    //return tidy(() => {
+      const context = new ExecutionContext(
+          this.weightMap, tensorArrayMap, tensorListMap,
+          this.functionExecutorMap);
+      const tensorsMap: NamedTensorsMap = {...this.weightMap};
+
+      Object.keys(inputs).forEach(name => {
+        const [nodeName, index] = parseNodeName(name);
+        const tensors: Tensor[] = [];
+        tensors[index] = inputs[name];
+        tensorsMap[nodeName] = tensors;
+      });
+
+      const tensorsToKeep = this.getFrozenTensorIds(tensorsMap);
+      const intermediateTensorConsumerCount: {[key: number]: number} = {};
+      for (let i = 0; i < orderedNodes.length; i++) {
+        const node = orderedNodes[i];
+        if (!tensorsMap[node.name]) {
+          const tensors =
+              executeOp(node, tensorsMap, context, this._resourceManager) as
+              Tensor[];
+          if (util.isPromise(tensors)) {
+            throw new Error(
+                `The execution of the op '${node.op}' returned a promise. ` +
+                `Please use model.executeAsync() instead.`);
+          }
+	  console.log(await tensors[0].data());
+          tensorsMap[node.name] = tensors;
+          this.checkTensorForDisposal(
+              node.name, node, tensorsMap, context, tensorsToKeep,
+              outputNodeNames, intermediateTensorConsumerCount);
+        }
+      }
+      // dispose the context for the root executor
+      if (this.parent == null) {
+        context.dispose(tensorsToKeep);
+      }
+
+      return outputs.map(name => getTensor(name, tensorsMap, context));
+    //});
+  }
+
   private getFrozenTensorIds(tensorMap: NamedTensorsMap): Set<number> {
     const ids = [].concat.apply(
         [],
@@ -293,7 +364,6 @@ export class GraphExecutor implements FunctionExecutor {
             if (tensor && !tensor.kept && !tensorsToKeep.has(tensor.id)) {
               const count = intermediateTensorConsumerCount[tensor.id];
               if (count === 1) {
-                // For debug purpose, do not dispose.
                 // tensor.dispose();
                 delete intermediateTensorConsumerCount[tensor.id];
               } else if (count != null) {
@@ -444,10 +514,8 @@ export class GraphExecutor implements FunctionExecutor {
       await Promise.all(promises);
     }
     const keysOfAll = Object.keys(tensorsMap);
-    for (let i = 0; i < keysOfAll.length; i++) {
-      console.log(
-          tensorsMap[keysOfAll[i]].length + ', i=' + i +
-          ', keysOfAll[i]=' + keysOfAll[i]);
+    for (let i = 0; i < keysOfAll.length; i ++) {
+      console.log(tensorsMap[keysOfAll[i]].length+ ", i="+ i + ", keysOfAll[i]="+keysOfAll[i]);
       console.log(await (tensorsMap[keysOfAll[i]][0]).data());
     }
     if (dynamicNode == null && !isFunctionExecution) {

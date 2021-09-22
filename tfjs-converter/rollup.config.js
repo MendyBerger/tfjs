@@ -100,7 +100,7 @@ function config({
 module.exports = cmdOptions => {
   const bundles = [];
 
-  const terserPlugin = terser({output: {preamble: PREAMBLE, comments: false}});
+  const terserPlugin = terser({output: {preamble: PREAMBLE,sourcemap: true, comments: false}});
   const name = 'tf';
   const extend = true;
   const browserFormat = 'umd';
