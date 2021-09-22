@@ -188,7 +188,8 @@ limitations under the License.
 
         // load model and run inference
         try {
-          tf.setBackend('cpu');
+	  console.log("CPU");
+          tf.setBackend('webgl');
           await loadModelAndRecordTime();
           await showMsg('Testing correctness');
           await showInputs();
@@ -202,10 +203,11 @@ limitations under the License.
           }
           const referencePrediction = predict(model, inferenceInput);
           referenceData = await getPredictionData(referencePrediction);
+	  console.log(state.backend);
 
           await tf.setBackend(state.backend);
           await showMsg(`Runing on ${state.backend}`);
-          const prediction = await predict(model, inferenceInput);
+          const prediction =await predictAsync(model, inferenceInput);
           predictionData = await getPredictionData(prediction);
         } catch (e) {
           showMsg('Error: ' + e.message);
@@ -215,6 +217,8 @@ limitations under the License.
         // compare results
         try {
           await showMsg(null);
+	  console.log(JSON.stringify(predictionData));
+	  console.log(JSON.stringify(referenceData));
           expectObjectsClose(predictionData, referenceData);
           match = true;
         } catch (e) {
@@ -248,7 +252,7 @@ limitations under the License.
     const parameterTable = document.querySelector('#parameters tbody');
     const modelInputsTable = document.querySelector('#modelInputs tbody');
 
-    let model, predict, chartWidth;
+    let model, predict, predictAsync, chartWidth;
 
     async function showMsg(message) {
       if (message != null) {
@@ -473,7 +477,9 @@ limitations under the License.
           });
         }
       }
-      predict = benchmark.predictFunc(inputSize);
+      const input = tf.randomNormal([1, 224, 224, 3]);
+      predict = benchmark.predictFunc(input);
+      predictAsync = benchmark.predictAsyncFunc(input);
       const elapsed = performance.now() - start;
 
       await showMsg(null);
@@ -682,13 +688,16 @@ limitations under the License.
     }
 
     function processUrls(urls, localBuild) {
+      console.log(localBuild);
       for (let i = 0; i < urls.length; i++) {
         let name = urls[i].split('/')[0].replace('tfjs-', '').replace('backend-', '');
+	console.log(name);
         if (localBuild.includes(name)) {
           urls[i] = `../../../dist/bin/${urls[i]}`;
         } else {
           urls[i] = `https://unpkg.com/@tensorflow/${urls[i].replace('/', '@latest/')}`;
         }
+	console.log(urls[i]);
       }
     }
 
@@ -702,7 +711,7 @@ limitations under the License.
         'tfjs-core/dist/tf-core.js',
         'tfjs-backend-cpu/dist/tf-backend-cpu.js',
         'tfjs-backend-webgl/dist/tf-backend-webgl.js',
-        'tfjs-backend-webgpu/dist/tf-backend-webgpu.min.js',
+        'tfjs-backend-webgpu/dist/tf-backend-webgpu.js',
         'tfjs-layers/dist/tf-layers.js',
         'tfjs-converter/dist/tf-converter.js',
         'tfjs-backend-wasm/dist/tf-backend-wasm.js',
