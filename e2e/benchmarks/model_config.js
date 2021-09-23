@@ -89,8 +89,8 @@ const benchmarks = {
         return model => model.predict(input);
       }
     },
-    predictAsyncFunc: (input) => {
-      return model => model.executeAsync(input);
+    predictDebugFunc: (input) => {
+      return model => model.executeAsync(input, null, true);
     }
   },
   'mesh_128': {

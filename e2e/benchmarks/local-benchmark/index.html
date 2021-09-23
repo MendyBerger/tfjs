@@ -95,6 +95,7 @@ limitations under the License.
     // Default do not run any task.
     let task = '';
     let outputNode = null;
+    let debug = false;
     function getURLState(url) {
       let params = new URLSearchParams(url);
       const keys = [...params.keys()];
@@ -111,6 +112,11 @@ limitations under the License.
       }
       if (params.has('output')) {
         outputNode = params.get('output');
+      }
+      if (params.has('debug')) {
+        if(params.get('debug') === "true") {
+          debug = true;
+        }
       }
       return params;
     }
@@ -209,7 +215,12 @@ limitations under the License.
 
           await tf.setBackend(state.backend);
           await showMsg(`Runing on ${state.backend}`);
-          const prediction =await predictAsync(model, inferenceInput);
+          let prediction;
+          if (debug) {
+            prediction = await predictDebug(model, inferenceInput);
+          } else {
+            prediction = await predict(model, inferenceInput);
+          }
           predictionData = await getPredictionData(prediction);
         } catch (e) {
           showMsg('Error: ' + e.message);
@@ -219,10 +230,6 @@ limitations under the License.
         // compare results
         try {
           await showMsg(null);
-          console.log("Reference Data: ");
-	        console.log(JSON.stringify(referenceData));
-          console.log("Actual Data: ");
-	        console.log(JSON.stringify(predictionData));
           expectObjectsClose(predictionData, referenceData);
           match = true;
         } catch (e) {
@@ -256,7 +263,7 @@ limitations under the License.
     const parameterTable = document.querySelector('#parameters tbody');
     const modelInputsTable = document.querySelector('#modelInputs tbody');
 
-    let model, predict, predictAsync, chartWidth;
+    let model, predict, predictDebug, chartWidth;
 
     async function showMsg(message) {
       if (message != null) {
@@ -483,7 +490,9 @@ limitations under the License.
       }
       const input = tf.randomNormal([1, 224, 224, 3]);
       predict = benchmark.predictFunc(input, outputNode);
-      predictAsync = benchmark.predictAsyncFunc(input);
+      if (debug) {
+        predictDebug = benchmark.predictDebugFunc(input);
+      }
       const elapsed = performance.now() - start;
 
       await showMsg(null);
