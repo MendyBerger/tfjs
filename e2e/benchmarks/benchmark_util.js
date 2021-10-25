@@ -244,11 +244,20 @@ async function timeInference(predict, numRuns = 1) {
   const times = [];
   for (let i = 0; i < numRuns; i++) {
     const start = performance.now();
+    console.log('Predict Begin *****');
     const res = await predict();
+    const predictEnd = performance.now()
+    const predictTime = predictEnd - start;
     // The prediction can be tf.Tensor|tf.Tensor[]|{[name: string]: tf.Tensor}.
+    console.log('Download Begin *****');
     const value = await downloadValuesFromTensorContainer(res);
-    const elapsedTime = performance.now() - start;
-
+    const downloadEnd = performance.now();
+    const downloadTime = downloadEnd - predictEnd;
+    const elapsedTime = downloadEnd - start;
+    console.log(
+        'predictTime =' + predictTime + ', downloadTime =' + downloadTime +
+        ', predictAndDownload = ' + elapsedTime);
+    console.log('Predict End *****');
     tf.dispose(res);
     times.push(elapsedTime);
   }

@@ -31,7 +31,12 @@ export function fromPixelsExternalImage(args: {
 }): TensorInfo {
   const {externalImage, backend, attrs, outShape, useImport} = args;
   const {numChannels} = attrs;
-
+  const logTime = false;
+  let inputUploadToGPUTime = 0;
+  let outputUploadStartTime = 0;
+  if (logTime) {
+    outputUploadStartTime = performance.now();
+  }
   const size = util.sizeFromShape(outShape);
   const strides = util.computeStrides(outShape);
   const output = backend.makeTensorInfo(outShape, 'int32');
@@ -50,13 +55,29 @@ export function fromPixelsExternalImage(args: {
   const key = webgpu_program.makeShaderKey(program, outputShapes, outputTypes);
 
   const layout = program.getLayout(backend.device);
-
+  let compileProgramTime = 0, createModuleTime = 0, createPipelineTime = 0;
   const pipeline = backend.getAndSavePipeline(key, () => {
-    return webgpu_program.compileProgram(
-        backend.device, program, layout.pipelineLayout, [], output, true);
+    if (logTime) {
+      const startCompileProgram = performance.now();
+      const [p, createModuleTimeTemp, createPipelineTimeTemp] =
+          webgpu_program.compileProgram(
+              backend.device, program, layout.pipelineLayout, [], output, true);
+      compileProgramTime = performance.now() - startCompileProgram;
+      createModuleTime = createModuleTimeTemp;
+      createPipelineTime = createPipelineTimeTemp;
+      return p;
+    } else {
+      const [p, ,]= webgpu_program.compileProgram(
+          backend.device, program, layout.pipelineLayout, [], output, true);
+      return p;
+    }
   });
 
   program.setPipeline(pipeline);
+  let inputUploadStartTime = 0;
+  if (logTime) {
+    inputUploadStartTime = performance.now();
+  }
 
   if (!useImport) {
     backend.queue.copyExternalImageToTexture(
@@ -84,8 +105,15 @@ export function fromPixelsExternalImage(args: {
   } else {
     externalResource = program.inputTexture.createView();
   }
+  if (logTime) {
+    inputUploadToGPUTime = performance.now() - inputUploadStartTime;
+  }
 
   backend.runFromPixelsProgram(
-      program, info.bufferInfo.buffer, layout, externalResource, output.dataId);
+      program, info.bufferInfo.buffer, layout, externalResource, output.dataId,
+      outputUploadStartTime,
+      0,  // outputLoad time
+      inputUploadToGPUTime, compileProgramTime, createModuleTime,
+      createPipelineTime);
   return output;
 }

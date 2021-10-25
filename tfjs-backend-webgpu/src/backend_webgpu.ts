@@ -101,6 +101,8 @@ export class WebGPUBackend extends KernelBackend {
   private querySet: GPUQuerySet;
   private fromPixelProgram?: FromPixelsProgram;
   private fromPixelImportProgram?: FromPixelsImportProgram;
+  private logTime = false;
+  private logKey = true;
 
   constructor(device: GPUDevice, supportTimeQuery = false) {
     super();
@@ -356,6 +358,7 @@ export class WebGPUBackend extends KernelBackend {
       // Data is on the CPU.
       return info.values;
     }
+    const copyStart = performance.now();
     const staging = this.acquireBuffer(
         info.bufferInfo.byteSize,
         GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ);
@@ -364,7 +367,7 @@ export class WebGPUBackend extends KernelBackend {
     this.currentCommandEncoder.copyBufferToBuffer(
         info.bufferInfo.buffer, 0, staging, 0, info.bufferInfo.byteSize);
     this.submitQueue();
-
+    const copyEnd = performance.now();
     await staging.mapAsync(GPUMapMode.READ);
     const values = staging.getMappedRange().slice(0);
 
@@ -374,6 +377,10 @@ export class WebGPUBackend extends KernelBackend {
           staging, info.bufferInfo.byteSize,
           GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ);
     }
+    const mapEnd = performance.now();
+    console.log(
+        'copyTime = ' + (copyEnd - copyStart) + ', mapTime = ' +
+        (mapEnd - copyEnd) + ', getTime = ' + (mapEnd - copyStart));
 
     // Need to get texture from swapChain to enable profiling tool
     // to capture a frame
@@ -709,11 +716,15 @@ export class WebGPUBackend extends KernelBackend {
       outputDtype: DataType,
       programUniforms?: Array<{type: string; data: number[]}>,
       output?: TensorInfo): TensorInfo {
+    let outputUploadStart = 0;
+    if (this.logTime) {
+      outputUploadStart = performance.now();
+    }
     if (!output) {
       output = this.makeTensorInfo(program.outputShape, outputDtype);
       if (util.sizeFromShape(output.shape) === 0) {
-        // Short-circuit the computation since the result is empty (has 0 in its
-        // shape).
+        // Short-circuit the computation since the result is empty (has 0 in
+        // its shape).
         const outData = this.tensorMap.get(output.dataId);
         outData.values =
             util.getTypedArrayFromDType(output.dtype as 'float32', 0);
@@ -721,6 +732,12 @@ export class WebGPUBackend extends KernelBackend {
       }
       this.uploadToGPU(output.dataId);
     }
+    let outputUploadTime = 0;
+    if (this.logTime) {
+      const outputUploadEnd = performance.now();
+      outputUploadTime = outputUploadEnd - outputUploadStart;
+    }
+
 
     // There are five kinds of uniforms: NAN, shapes, shape strides, program
     // size, program defined uniforms.
@@ -745,6 +762,7 @@ export class WebGPUBackend extends KernelBackend {
     const uniformsDataView = this.computePadding(uniformsWithType);
     const uniformsByteLength = uniformsDataView.byteLength;
     uniforms = this.makeUniformsDataView(uniformsDataView);
+    const inputUploadStart = performance.now();
 
     const inputsData = inputs.map((input: TensorInfo, i: number) => {
       if (input.dtype === 'complex64') {
@@ -763,7 +781,13 @@ export class WebGPUBackend extends KernelBackend {
         name: program.variableNames[i]
       };
     });
+    let inputUploadToGPUTime = 0;
+    if (this.logTime) {
+      inputUploadToGPUTime = performance.now() - inputUploadStart;
+    }
     const bufferTypes = inputsData.map(d => d.dtype).concat(output.dtype);
+    // const bufferTypes =
+    // inputsData.map(d => d.dtype.charAt(0)).concat(output.dtype.charAt(0));
     const broadcastDims = inputsData.map(
         d => backend_util.getBroadcastDims(d.shape, output.shape));
     const inputShapesEqualsOutShape =
@@ -776,10 +800,26 @@ export class WebGPUBackend extends KernelBackend {
     const {bindGroupLayout, pipelineLayout} =
         this.getCachedOrCreateLayout(program.variableNames.length);
 
+    if (this.logKey) {
+      const keyInCache = key in this.pipelineCache;
+      if (this.logTime) {
+        console.log(
+            program.constructor.name + '*, ' + key + ',* ' + program.shaderKey +
+            ',*' + keyInCache);
+      }
+    }
+    let compileProgramTime = 0, createModuleTime = 0, createPipelineTime = 0;
     const pipeline = this.getAndSavePipeline(key, () => {
-      return webgpu_program.compileProgram(
-          this.device, program, pipelineLayout, inputsData, output);
+      const startCompileProgram = performance.now();
+      const [p, createModuleTimeTemp, createPipelineTimeTemp] =
+          webgpu_program.compileProgram(
+              this.device, program, pipelineLayout, inputsData, output);
+      compileProgramTime = performance.now() - startCompileProgram;
+      createModuleTime = createModuleTimeTemp;
+      createPipelineTime = createPipelineTimeTemp;
+      return p;
     });
+
 
     const shouldTimeProgram = this.activeTimers != null;
 
@@ -830,12 +870,23 @@ export class WebGPUBackend extends KernelBackend {
         query: this.getQueryTime(this.querySet)
       });
     }
+    if (this.logTime) {
+      const runWebGPUProgramTime = performance.now() - outputUploadStart;
+      console.log(
+          'program = ' + program.constructor.name + ', outputUploadToGPU = ' +
+          outputUploadTime + ', inputUploadToGPU = ' + inputUploadToGPUTime +
+          ', compileProgram = ' + compileProgramTime + ', runWebGPUProgram = ' +
+          runWebGPUProgramTime + ', createModuleTime = ' + createModuleTime +
+          ', createPipelineTime = ' + createPipelineTime);
+    }
     return output;
   }
 
   runFromPixelsProgram(
       program: FromPixelsProgram, output: GPUBuffer, layout: WebGPULayout,
-      externalResource: GPUExternalTexture|GPUTextureView, outputId: DataId) {
+      externalResource: GPUExternalTexture|GPUTextureView, outputId: DataId,
+      startTime = 0, outputUploadTime = 0, inputUploadToGPUTime = 0,
+      compileProgramTime = 0, createModuleTime = 0, createPipelineTime = 0) {
     const bindGroup = this.device.createBindGroup({
       layout: layout.bindGroupLayout,
       entries: [
@@ -881,6 +932,15 @@ export class WebGPUBackend extends KernelBackend {
         name: program.constructor.name,
         query: this.getQueryTime(this.querySet)
       });
+    }
+    if (this.logTime) {
+      const runWebGPUProgramTime = performance.now() - startTime;
+      console.log(
+          'program = ' + program.constructor.name + ', outputUploadToGPU = ' +
+          outputUploadTime + ', inputUploadToGPU = ' + inputUploadToGPUTime +
+          ', compileProgram = ' + compileProgramTime + ', runWebGPUProgram = ' +
+          runWebGPUProgramTime + ', createModuleTime = ' + createModuleTime +
+          ', createPipelineTime = ' + createPipelineTime);
     }
   }
 

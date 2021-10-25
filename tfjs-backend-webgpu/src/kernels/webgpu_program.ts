@@ -68,16 +68,31 @@ export const compileProgram =
     (device: GPUDevice, program: WebGPUProgram,
      pipelineLayout: GPUPipelineLayout,
      inputsData: shader_preprocessor.InputInfo[], output: TensorInfo,
-     isFromPixel = false): GPUComputePipeline => {
+     isFromPixel = false): [GPUComputePipeline, number, number] => {
       const outputData = {dtype: output.dtype, shape: output.shape};
 
       const source = shader_preprocessor.makeShader(
           inputsData, outputData, program, isFromPixel);
+      const logTime = false;
+      let start, end1, end2;
+      if (logTime) start = performance.now();
+
       const module = device.createShaderModule({code: source});
+      if (logTime) end1 = performance.now();
       const pipeline = device.createComputePipeline(
           {layout: pipelineLayout, compute: {module, entryPoint: 'main'}});
 
-      return pipeline;
+      if (logTime) {
+        end2 = performance.now();
+        /*
+        console.log(
+            'program = ' + program.constructor.name +
+            ', createShaderModule = ' + (end1 - start) +
+            ', createComputePipeline = ' + (end2 - end1) +
+            ', both = ' + (end2 - start));
+            */
+      }
+      return [pipeline, (end1 - start), (end2 - end1)];
     };
 
 export function makeShaderKey<R extends Rank>(
