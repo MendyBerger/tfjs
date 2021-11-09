@@ -57,7 +57,7 @@
     "build-union-ci": "cd ../tfjs && yarn && yarn build-ci",
     "build-node": "cd ../tfjs-node && yarn && yarn build",
     "build-node-ci": "cd ../tfjs-node && yarn && yarn build-ci",
-    "build-deps": "yarn build-link-package && yarn build-backend-webgl && yarn build-layers && yarn build-converter && yarn build-data && yarn build-union && yarn build-node",
+    "build-deps": "yarn build-link-package && yarn build-backend-webgl && yarn build-layers && yarn build-converter && yarn build-data && yarn build-union",
     "build-deps-ci": "./scripts/build-deps-ci.sh",
     "lint": "tslint -p . -t verbose",
     "run-browserstack": "karma start --browserstack",

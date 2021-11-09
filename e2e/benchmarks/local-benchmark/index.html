@@ -569,6 +569,9 @@ limitations under the License.
 
     async function profileMemoryAndKernelTime() {
       await showMsg('Profile memory and kernels');
+      if (state.numRuns == 0) {
+        return;
+      }
       const start = performance.now();
 
       let profileInfo;
