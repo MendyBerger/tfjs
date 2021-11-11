@@ -17,7 +17,7 @@
 
 import {backend_util, util} from '@tensorflow/tfjs-core';
 
-import {computeDispatch, computeWorkGroupSizeForConv2d, computeWorkPerThreadForConv2d, tilesFitEvenlyIntoShape} from '../webgpu_util';
+import {computeDispatch, computeWorkGroupSizeForConv2d, computeWorkPerThreadForConv2d} from '../webgpu_util';
 import {mapActivationToShaderProgram} from './activation_util';
 
 import {makeMatMulPackedSource} from './matmul_packed_webgpu';
@@ -29,8 +29,9 @@ export class Conv2DMMProgram implements WebGPUProgram {
   dispatchLayout: {x: number[], y: number[], z: number[]};
   dispatch: [number, number, number];
   variableNames = ['x', 'W'];
-  uniforms =
-      `filterDims : vec2<i32>; pad : vec2<i32>; stride : vec2<i32>; dilation : vec2<i32>; dimAOuter : i32; dimBOuter : i32; dimInner : i32;`;
+  uniforms = `filterDims : vec2<i32>; pad : vec2<i32>; stride : vec2<i32>;
+      dilation : vec2<i32>; dimAOuter : i32; dimBOuter : i32; dimInner : i32;
+      fitA : i32; fitB : i32;`;
   workGroupSize: [number, number, number];
   elementsPerThread: [number, number, number];
   convInfo: backend_util.Conv2DInfo;
@@ -71,32 +72,7 @@ export class Conv2DMMProgram implements WebGPUProgram {
     this.activation = activation;
     this.hasPreluActivationWeights = hasPreluActivationWeights;
 
-    [this.fitA, this.fitB] = this.getShapeFit();
-    this.shaderKey = `conv2DMM_${this.elementsPerThread}_${this.activation}_${
-        this.fitA}_${this.fitB}`;
-  }
-
-  getShapeFit(): boolean[] {
-    const tileAOuter = this.workGroupSize[1] * this.elementsPerThread[1];
-    const tileBOuter = this.workGroupSize[0] * this.elementsPerThread[0];
-    const tileInner = tileAOuter > tileBOuter ? tileAOuter : tileBOuter;
-    util.assert(
-        tileInner % this.workGroupSize[0] === 0 &&
-            tileInner % this.workGroupSize[1] === 0,
-        () =>
-            // tslint:disable-next-line: max-line-length
-        'tileInner must be multiple of workgroupsize.x and workgroupsize.y');
-    const tileSizeA = [tileAOuter, tileInner];
-    const tileSizeB = [tileInner, tileBOuter];
-    const dimAOuter = this.outputShape[1] * this.outputShape[2];
-    const dimBOuter = this.outputShape[3];
-    const dimInner = this.convInfo.filterHeight * this.convInfo.filterWidth *
-        this.convInfo.inChannels;
-
-    return [
-      tilesFitEvenlyIntoShape(tileSizeA, [dimAOuter, dimInner]),
-      tilesFitEvenlyIntoShape(tileSizeB, [dimInner, dimBOuter])
-    ];
+    this.shaderKey = `conv2DMM_${this.elementsPerThread}_${this.activation}`;
   }
 
   getUserCode(): string {
@@ -121,20 +97,22 @@ export class Conv2DMMProgram implements WebGPUProgram {
     }
     return 0.0;`;
 
-    const sampleA = this.fitA ?
-        `${readASnippet}` :
-        `if (row < uniforms.dimAOuter && col < uniforms.dimInner) {
+    const sampleA = `
+    if (uniforms.fitA == 1) {
+      ${readASnippet}
+    } elseif (row < uniforms.dimAOuter && col < uniforms.dimInner) {
       ${readASnippet}
     }
     return 0.0;
     `;
 
-    const sampleB = this.fitB ?
-        `return W.numbers[row * uniforms.dimBOuter + col];` :
-        `if(coordsInBounds2D(vec2<i32>(row, col), vec2<i32>(uniforms.dimInner, uniforms.dimBOuter))) {
-           return W.numbers[row * uniforms.dimBOuter + col];
-	 }
-	 return 0.0;
+    const sampleB = `
+    if (uniforms.fitB == 1) {
+      return W.numbers[row * uniforms.dimBOuter + col];
+    } elseif (coordsInBounds2D(vec2<i32>(row, col), vec2<i32>(uniforms.dimInner, uniforms.dimBOuter))) {
+      return W.numbers[row * uniforms.dimBOuter + col];
+    }
+    return 0.0;
 	 `;
 
     let activationSnippet = '', applyActivationSnippet = '';

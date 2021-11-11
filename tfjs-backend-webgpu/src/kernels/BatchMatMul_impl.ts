@@ -18,6 +18,7 @@
 import {backend_util, broadcast_util, env, TensorInfo, util} from '@tensorflow/tfjs-core';
 
 import {WebGPUBackend} from '../backend_webgpu';
+import {tilesFitEvenlyIntoShape} from '../webgpu_util';
 
 import {MatMulPackedVec4Program} from './matmul_packed_vec4_webgpu';
 import {MatMulPackedProgram} from './matmul_packed_webgpu';
@@ -37,6 +38,45 @@ type BatchMatMulConfig = {
   leakyreluAlpha?: number,
   activation?: backend_util.Activation
 };
+
+function getShapeFitForMatMulPackedProgram(program: MatMulPackedProgram):
+    boolean[] {
+  const tileAOuter = program.workGroupSize[1] * program.workPerThread;
+  const tileBOuter = program.workGroupSize[0] * program.workPerThread;
+  let tileInner = tileAOuter > tileBOuter ? tileAOuter : tileBOuter;
+  if (program.outputShape[1] === 1) {
+    tileInner *= 4;
+  }
+  util.assert(
+      tileInner % program.workGroupSize[0] === 0 &&
+          tileInner % program.workGroupSize[1] === 0,
+      () => `tileInner must be multiple of workgroupsize.x ` +
+          `and workgroupsize.y`);
+  const tileSizeA = [tileAOuter, tileInner];
+  const tileSizeB = [tileInner, tileBOuter];
+
+  return [
+    tilesFitEvenlyIntoShape(tileSizeA, program.aShape.slice(1)),
+    tilesFitEvenlyIntoShape(tileSizeB, program.bShape.slice(1))
+  ];
+}
+
+function getShapeFitMatMulPackedVec4Program(program: MatMulPackedVec4Program):
+    boolean[] {
+  const dimInner = program.aShape[2];
+  const dimBOuter = program.outputShape[2];
+  const bShape = [program.outputShape[0], dimInner, dimBOuter];
+  const tileAOuter = program.workGroupSize[1] * program.workPerThread;
+  const tileBOuter = program.workGroupSize[0] * program.vecSize;
+  const tileInner = tileBOuter;  // Make sure tileInner is divisible by 4.
+
+  const tileSizeA = [tileAOuter, tileInner];
+  const tileSizeB = [tileInner, tileBOuter];
+  return [
+    tilesFitEvenlyIntoShape(tileSizeA, program.aShape.slice(1)),
+    tilesFitEvenlyIntoShape(tileSizeB, bShape.slice(1))
+  ];
+}
 
 export function batchMatMulImpl({
   a,
@@ -139,6 +179,16 @@ export function batchMatMulImpl({
     {type: 'int32', data: [outerShapeA]}, {type: 'int32', data: [outerShapeB]},
     {type: 'int32', data: [innerShapeA]}
   ];
+
+  const [fitA, fitB] = program instanceof MatMulPackedVec4Program ?
+      getShapeFitMatMulPackedVec4Program(program) :
+      (program instanceof MatMulPackedProgram ?
+           getShapeFitForMatMulPackedProgram(program) :
+           [0, 0]);
+  dimensions.push(
+      {type: 'int32', data: [fitA as number]},
+      {type: 'int32', data: [fitB as number]});
+
   const out = backend.runWebGPUProgram(program, inputs, a.dtype, dimensions);
   const outReshaped =
       reshape({inputs: {x: out}, backend, attrs: {shape: outShape}});

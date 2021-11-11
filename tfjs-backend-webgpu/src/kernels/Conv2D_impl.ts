@@ -15,9 +15,10 @@
  * =============================================================================
  */
 
-import {backend_util, env, TensorInfo} from '@tensorflow/tfjs-core';
+import {backend_util, env, TensorInfo, util} from '@tensorflow/tfjs-core';
 
 import {WebGPUBackend} from '../backend_webgpu';
+import {tilesFitEvenlyIntoShape} from '../webgpu_util';
 
 import {batchMatMulImpl} from './BatchMatMul_impl';
 import {Im2ColProgram} from './im2col_webgpu';
@@ -34,6 +35,28 @@ type Conv2DConfig = {
   leakyreluAlpha?: number,
   activation?: backend_util.Activation
 };
+
+function getShapeFitForMatMulPackedProgram(program: MatMulPackedProgram):
+    boolean[] {
+  const tileAOuter = program.workGroupSize[1] * program.workPerThread;
+  const tileBOuter = program.workGroupSize[0] * program.workPerThread;
+  let tileInner = tileAOuter > tileBOuter ? tileAOuter : tileBOuter;
+  if (program.outputShape[1] === 1) {
+    tileInner *= 4;
+  }
+  util.assert(
+      tileInner % program.workGroupSize[0] === 0 &&
+          tileInner % program.workGroupSize[1] === 0,
+      () => `tileInner must be multiple of workgroupsize.x ` +
+          `and workgroupsize.y`);
+  const tileSizeA = [tileAOuter, tileInner];
+  const tileSizeB = [tileInner, tileBOuter];
+
+  return [
+    tilesFitEvenlyIntoShape(tileSizeA, program.aShape.slice(1)),
+    tilesFitEvenlyIntoShape(tileSizeB, program.bShape.slice(1))
+  ];
+}
 
 // For 1x1 kernels that iterate through every point in the input, convolution
 // can be expressed as matrix multiplication (without need for memory
@@ -167,6 +190,11 @@ export function conv2dWithIm2Col({
     {type: 'int32', data: [dimAOuter]}, {type: 'int32', data: [dimBOuter]},
     {type: 'int32', data: [dimInner]}
   ];
+
+  const [fitA, fitB] = getShapeFitForMatMulPackedProgram(matMulProgram);
+  matmulDimensions.push(
+      {type: 'int32', data: [fitA ? 1 : 0]},
+      {type: 'int32', data: [fitB ? 1 : 0]});
 
   const result: TensorInfo = backend.runWebGPUProgram(
       matMulProgram, [im2Col3D, w2Row], im2Col3D.dtype, matmulDimensions);

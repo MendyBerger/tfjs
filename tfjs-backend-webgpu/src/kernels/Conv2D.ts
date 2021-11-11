@@ -15,14 +15,56 @@
  * =============================================================================
  */
 
-import {backend_util, Conv2D, Conv2DAttrs, Conv2DInputs, env, KernelConfig, KernelFunc} from '@tensorflow/tfjs-core';
+import {backend_util, Conv2D, Conv2DAttrs, Conv2DInputs, env, KernelConfig, KernelFunc, util} from '@tensorflow/tfjs-core';
 
 import {WebGPUBackend} from '../backend_webgpu';
+import {tilesFitEvenlyIntoShape} from '../webgpu_util';
 
 import {conv2dByMatMul, conv2dWithIm2Col} from './Conv2D_impl';
 import {Conv2DMMVec4Program} from './conv2d_mm_vec4_webgpu';
 import {Conv2DMMProgram} from './conv2d_mm_webgpu';
 import {Conv2DNaiveProgram} from './conv2d_naive_webgpu';
+
+function getShapeFitForConv2DMMProgram(program: Conv2DMMProgram): boolean[] {
+  const tileAOuter = program.workGroupSize[1] * program.elementsPerThread[1];
+  const tileBOuter = program.workGroupSize[0] * program.elementsPerThread[0];
+  const tileInner = tileAOuter > tileBOuter ? tileAOuter : tileBOuter;
+  util.assert(
+      tileInner % program.workGroupSize[0] === 0 &&
+          tileInner % program.workGroupSize[1] === 0,
+      () =>
+          // tslint:disable-next-line: max-line-length
+      'tileInner must be multiple of workgroupsize.x and workgroupsize.y');
+  const tileSizeA = [tileAOuter, tileInner];
+  const tileSizeB = [tileInner, tileBOuter];
+  const dimAOuter = program.outputShape[1] * program.outputShape[2];
+  const dimBOuter = program.outputShape[3];
+  const dimInner = program.convInfo.filterHeight *
+      program.convInfo.filterWidth * program.convInfo.inChannels;
+
+  return [
+    tilesFitEvenlyIntoShape(tileSizeA, [dimAOuter, dimInner]),
+    tilesFitEvenlyIntoShape(tileSizeB, [dimInner, dimBOuter])
+  ];
+}
+
+function getShapeFitForConv2DMMVec4Program(program: Conv2DMMVec4Program):
+    boolean[] {
+  const tileAOuter = program.workGroupSize[1] * program.elementsPerThread[1];
+  const tileBOuter = program.workGroupSize[0] * program.elementsPerThread[0];
+  const tileInner = tileBOuter;
+
+  const tileSizeA = [tileAOuter, tileInner];
+  const tileSizeB = [tileInner, tileBOuter];
+  const dimAOuter = program.outputShape[1] * program.outputShape[2];
+  const dimBOuter = program.outputShape[3];
+  const dimInner = program.convInfo.filterHeight *
+      program.convInfo.filterWidth * program.convInfo.inChannels;
+  return [
+    tilesFitEvenlyIntoShape(tileSizeA, [dimAOuter, dimInner]),
+    tilesFitEvenlyIntoShape(tileSizeB, [dimInner, dimBOuter])
+  ];
+}
 
 export function conv2d(
     args: {inputs: Conv2DInputs, attrs: Conv2DAttrs, backend: WebGPUBackend}) {
@@ -80,6 +122,14 @@ export function conv2d(
         {type: 'int32', data: [dimInner]});
   }
 
+  const [fitA, fitB] = program instanceof Conv2DMMProgram ?
+      getShapeFitForConv2DMMProgram(program) :
+      (program instanceof Conv2DMMVec4Program ?
+           getShapeFitForConv2DMMVec4Program(program) :
+           [0, 0]);
+  dimensions.push(
+      {type: 'int32', data: [fitA as number]},
+      {type: 'int32', data: [fitB as number]});
   return backend.runWebGPUProgram(program, [x, filter], x.dtype, dimensions);
 }
 
