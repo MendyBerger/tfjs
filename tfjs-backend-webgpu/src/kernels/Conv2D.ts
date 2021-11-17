@@ -46,7 +46,6 @@ export function conv2d(
   }
 
   let program: Conv2DMMProgram|Conv2DNaiveProgram|Conv2DMMVec4Program;
-
   const padInfo = [convInfo.padInfo.top, convInfo.padInfo.left];
   const dimensions = [
     {type: 'int32', data: [convInfo.filterHeight, convInfo.filterWidth]},
@@ -54,6 +53,7 @@ export function conv2d(
     {type: 'int32', data: [convInfo.strideHeight, convInfo.strideWidth]},
     {type: 'int32', data: [convInfo.dilationHeight, convInfo.dilationWidth]}
   ];
+  /*
   const useNaive = env().getBool('WEBGPU_USE_NAIVE_CONV2D');
   if (useNaive) {
     // TODO(kainino0x): This may be obsolete, but is kept for reference.
@@ -70,6 +70,9 @@ export function conv2d(
   } else {
     program = new Conv2DMMProgram(convInfo);
   }
+  */
+  const useNaive = false;
+  program = new Conv2DMMProgram(convInfo);
   if (!useNaive) {
     const dimAOuter = convInfo.outShape[1] * convInfo.outShape[2];
     const dimBOuter = convInfo.outShape[3];

@@ -904,11 +904,11 @@
   version "0.0.0"
   uid ""
 
-"@tensorflow/tfjs-data@link:../tfjs-data":
+"@tensorflow/tfjs-data@link:../link-package/node_modules/@tensorflow/tfjs-data":
   version "0.0.0"
   uid ""
 
-"@tensorflow/tfjs-layers@link:../tfjs-layers":
+"@tensorflow/tfjs-layers@link:../link-package/node_modules/@tensorflow/tfjs-layers":
   version "0.0.0"
   uid ""
 

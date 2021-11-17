@@ -15,14 +15,15 @@
  * =============================================================================
  */
 
-import {util} from '@tensorflow/tfjs-core';
-import {BinaryOpSharedProgram} from './binary_op_shared_webgpu';
-import {BinaryOpVec4Program} from './binary_op_vec4_webgpu';
+//import {util} from '@tensorflow/tfjs-core';
+//import {BinaryOpSharedProgram} from './binary_op_shared_webgpu';
+//import {BinaryOpVec4Program} from './binary_op_vec4_webgpu';
 import {BinaryOpProgram} from './binary_op_webgpu';
 import {BinaryOpType} from './binary_op_util';
 
 export function getBinaryProgram(
     op: BinaryOpType, aShape: number[], bShape: number[]) {
+  /*
   const useVec4 =
       util.arraysEqual(aShape, bShape) && util.sizeFromShape(aShape) % 4 === 0;
   if (useVec4) {
@@ -36,5 +37,6 @@ export function getBinaryProgram(
     return new BinaryOpSharedProgram(op, aShape, bShape, useSharedMemoryWithB);
   } else {
     return new BinaryOpProgram(op, aShape, bShape);
-  }
+  }*/
+  return new BinaryOpProgram(op, aShape, bShape);
 }

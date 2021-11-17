@@ -19,10 +19,10 @@ import {backend_util, broadcast_util, env, TensorInfo, util} from '@tensorflow/t
 
 import {WebGPUBackend} from '../backend_webgpu';
 
-import {MatMulPackedVec4Program} from './matmul_packed_vec4_webgpu';
+//import {MatMulPackedVec4Program} from './matmul_packed_vec4_webgpu';
 import {MatMulPackedProgram} from './matmul_packed_webgpu';
-import {MatMulReduceProgram} from './matmul_reduce';
-import {MatMulSmallOutputSizeProgram} from './matmul_small_output_size_webgpu';
+//import {MatMulReduceProgram} from './matmul_reduce';
+//import {MatMulSmallOutputSizeProgram} from './matmul_small_output_size_webgpu';
 import {reshape} from './Reshape';
 import {WebGPUProgram} from './webgpu_program';
 
@@ -89,9 +89,12 @@ export function batchMatMulImpl({
 
   const batchDim = Math.max(batchDimA, batchDimB);
 
+  /*
   const useVec4 = innerShapeA % 4 === 0 && outerShapeB % 4 === 0 &&
       !transposeA && !transposeB && outerShapeB >= 32;
+  */
   let program: WebGPUProgram;
+  /*
   if (outerShapeA * outerShapeB <= 32) {
     program = new MatMulReduceProgram(
         [batchDim, outerShapeA, outerShapeB], transposeA, transposeB, bias,
@@ -128,6 +131,11 @@ export function batchMatMulImpl({
         env().get('WEBGPU_MATMUL_WORK_PER_THREAD') as number, transposeA,
         transposeB, bias, activation, preluActivationWeights);
   }
+*/
+  program = new MatMulPackedProgram(
+    a3dShape, [batchDim, outerShapeA, outerShapeB],
+    env().get('WEBGPU_MATMUL_WORK_PER_THREAD') as number, transposeA,
+    transposeB, bias, activation, preluActivationWeights);
   const inputs: TensorInfo[] = [a3d, b3d];
   if (bias) {
     inputs.push(bias);
