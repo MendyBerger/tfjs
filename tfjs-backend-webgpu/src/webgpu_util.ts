@@ -65,14 +65,16 @@ export function computeDispatch(
     return [dispatchX, dispatchY, dispatchZ];
   }
 
-  util.assert(dispatchX > MAX_COMPUTE_PER_DIMENSION_DISPATCH_SIZE &&
-      layout.y === undefined && layout.z === undefined, () =>
-      'Dispatch size exceeds WebGPU limits in Y or Z dimension.');
+  util.assert(
+      dispatchX > MAX_COMPUTE_PER_DIMENSION_DISPATCH_SIZE &&
+          layout.y === undefined && layout.z === undefined,
+      () => 'Dispatch size exceeds WebGPU limits in Y or Z dimension.');
 
   let dispatchAverage = Math.ceil(Math.sqrt(dispatchX));
   if (dispatchAverage > MAX_COMPUTE_PER_DIMENSION_DISPATCH_SIZE) {
     dispatchAverage = Math.ceil(Math.cbrt(dispatchX));
-    util.assert(dispatchAverage <= MAX_COMPUTE_PER_DIMENSION_DISPATCH_SIZE,
+    util.assert(
+        dispatchAverage <= MAX_COMPUTE_PER_DIMENSION_DISPATCH_SIZE,
         () => 'Total dispatch size exceeds WebGPU maximum.');
     return [dispatchAverage, dispatchAverage, dispatchAverage];
   } else {
@@ -155,13 +157,22 @@ export function GPUBytesPerElement(dtype: DataType): number {
   }
 }
 
-export function ArrayBufferToTypedArray(data: ArrayBuffer, dtype: DataType) {
+export function ArrayBufferToTypedArray(data: ArrayBuffer, dtype: DataType, atomic= false) {
   if (dtype === 'float32') {
+    //console.log(new Float32Array(data));
+    //console.log(new Int32Array(data));
     return new Float32Array(data);
   } else if (dtype === 'int32') {
-    return new Int32Array(data);
+    //console.log(new Float32Array(data));
+    //console.log(new Int32Array(data));
+    if (atomic) {
+      return new Int32Array(data);
+    }
+    console.log(Int32Array.from(new Float32Array(data)));
+    // return new Int32Array(new Float32Array(data).buffer);
+    return Int32Array.from(new Float32Array(data));
   } else if (dtype === 'bool' || dtype === 'string') {
-    const dataAsInt32Array = new Int32Array(data);
+    const dataAsInt32Array = new Float32Array(data);
     const boolData = new ArrayBuffer(dataAsInt32Array.length);
     const dataAsTypedArray = new Uint8Array(boolData);
     for (let i = 0; i < dataAsInt32Array.length; i++) {

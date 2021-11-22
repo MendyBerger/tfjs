@@ -164,7 +164,7 @@ export function makeShader(
   } else {
     prefixSnippets.push(`
     [[block]] struct Matrix0 {
-        numbers: array<${mapToWgslTypes(outputData.dtype, program.isVec4)}>;
+        numbers: array<${mapToWgslTypes('float32', program.isVec4)}>;
     };
 
     [[group(0), binding(0)]] var<storage, write> result : Matrix0;
@@ -198,8 +198,8 @@ export function makeShader(
 
   ];
   if (!program.atomic) {
-    sources.push(getSetOutputSnippet(
-        outputData.shape, outputData.dtype, program.isVec4));
+    sources.push(
+        getSetOutputSnippet(outputData.shape, 'float32', program.isVec4));
   }
   if (dispatchLayoutRank === outputData.shape.length) {
     // Input sampling snippet is only meaningful when the output isn't getting
