@@ -157,13 +157,16 @@ export function GPUBytesPerElement(dtype: DataType): number {
   }
 }
 
-export function ArrayBufferToTypedArray(data: ArrayBuffer, dtype: DataType) {
+export function ArrayBufferToTypedArray(data: ArrayBuffer, dtype: DataType, atomic= false) {
   if (dtype === 'float32') {
     return new Float32Array(data);
   } else if (dtype === 'int32') {
-    //console.log(new Float32Array(data));
-    //console.log(new Int32Array(data));
-    //console.log(Int32Array.from(new Float32Array(data)));
+    console.log(new Float32Array(data));
+    console.log(new Int32Array(data));
+    if (atomic) {
+      return new Int32Array(data);
+    }
+    console.log(Int32Array.from(new Float32Array(data)));
     // return new Int32Array(new Float32Array(data).buffer);
     return Int32Array.from(new Float32Array(data));
   } else if (dtype === 'bool' || dtype === 'string') {

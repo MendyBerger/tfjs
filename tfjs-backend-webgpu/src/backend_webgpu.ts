@@ -43,6 +43,7 @@ type TensorBufferInfo = {
   dtype: DataType,
   bufferInfo: BufferInfo,
   refCount: number,
+  atomic?: boolean,
   // For complex numbers, the real and imaginary parts are stored as their own
   // individual tensors, with a parent joining the two with the
   // complexTensorInfos field.
@@ -263,9 +264,6 @@ export class WebGPUBackend extends KernelBackend {
     if (dtype === 'bool' && values instanceof Uint8Array) {
       values = Float32Array.from(values);
     }
-    if (dtype === 'int32' && values instanceof Int32Array) {
-      //values = Float32Array.from(values);
-    }
 
     this.tensorMap.set(dataId, {
       dtype,
@@ -307,6 +305,7 @@ export class WebGPUBackend extends KernelBackend {
   }
 
   getBuffer(dataId: DataId) {
+    console.error("uploadToGPU atomic");
     this.uploadToGPU(dataId);
     return this.tensorMap.get(dataId).bufferInfo.buffer;
   }
@@ -443,8 +442,9 @@ export class WebGPUBackend extends KernelBackend {
     } else {
       const data = await this.getBufferData(info);
       console.log(data);
+      console.log(JSON.stringify(info));
       vals =
-          webgpu_util.ArrayBufferToTypedArray(data as ArrayBuffer, info.dtype);
+          webgpu_util.ArrayBufferToTypedArray(data as ArrayBuffer, info.dtype, info.atomic);
       console.log(vals);
     }
     this.convertAndCacheOnCPU(dataId, vals);
@@ -556,8 +556,16 @@ export class WebGPUBackend extends KernelBackend {
     }
   }
 
-  uploadToGPU(dataId: DataId): void {
+  uploadToGPU(dataId: DataId, atomic = false): void {
     const info = this.tensorMap.get(dataId);
+
+    // TODO: before or after buffer!=null?
+    if(atomic === true) {
+      const infoWithAtomic = info;
+      infoWithAtomic.atomic = true;
+      this.tensorMap.delete(dataId);
+      this.tensorMap.set(dataId, infoWithAtomic);
+    }
 
     if (info.bufferInfo.buffer != null) {
       // Already on the GPU.
@@ -568,9 +576,10 @@ export class WebGPUBackend extends KernelBackend {
 
     if (info.values) {
       let gpuValues = info.values;
-      if (info.values instanceof Int32Array) {
-        gpuValues = Float32Array.from(info.values);
+      if (info.values instanceof Int32Array && atomic === false) {
+         gpuValues = Float32Array.from(info.values);
       }
+  
       this.queue.writeBuffer(
           info.bufferInfo.buffer, 0, gpuValues as ArrayBuffer);
       // TODO: WebGPU doesn't support read data synchronously from GPU to CPU.
@@ -726,7 +735,16 @@ export class WebGPUBackend extends KernelBackend {
             util.getTypedArrayFromDType(output.dtype as 'float32', 0);
         return output;
       }
-      this.uploadToGPU(output.dataId);
+      this.uploadToGPU(output.dataId, program.atomic);
+    } else {
+          // TODO: before or after buffer!=null?
+      if(program.atomic === true) {
+        const info = this.tensorMap.get(output.dataId);
+        const infoWithAtomic = info;
+        infoWithAtomic.atomic = true;
+        this.tensorMap.delete(output.dataId);
+        this.tensorMap.set(output.dataId, infoWithAtomic);
+      }
     }
 
     // There are five kinds of uniforms: NAN, shapes, shape strides, program
@@ -761,13 +779,13 @@ export class WebGPUBackend extends KernelBackend {
             `dtypes, please separate the program into real and imaginary ` +
             `parts.`);
       }
-      this.uploadToGPU(input.dataId);
+      this.uploadToGPU(input.dataId, program.atomic);
       console.log(this.tensorMap.get(input.dataId).dtype);
       return {
         // Returning dtype from tensorMap because it reflects dtype
         // of underlying buffer, rather than abstract dtype.
-        dtype: 'float32' as
-            DataType,  // this.tensorMap.get(input.dataId).dtype,  //
+        dtype: program.atomic ? this.tensorMap.get(input.dataId).dtype :
+                                'float32' as DataType,
         shape: input.shape,
         name: program.variableNames[i]
       };
