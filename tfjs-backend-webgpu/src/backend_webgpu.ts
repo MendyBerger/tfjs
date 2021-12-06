@@ -865,6 +865,13 @@ export class WebGPUBackend extends KernelBackend {
   runFromPixelsProgram(
       program: FromPixelsProgram, output: GPUBuffer, layout: WebGPULayout,
       externalResource: GPUExternalTexture|GPUTextureView, outputId: DataId) {
+
+    const info = this.tensorMap.get(outputId);
+    const infoWithAtomic = info;
+    infoWithAtomic.atomic = true;
+    this.tensorMap.delete(outputId);
+    this.tensorMap.set(outputId, infoWithAtomic);
+
     const bindGroup = this.device.createBindGroup({
       layout: layout.bindGroupLayout,
       entries: [

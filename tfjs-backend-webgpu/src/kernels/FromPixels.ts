@@ -115,8 +115,13 @@ export function fromPixels(args: {
 
   const info = backend.tensorMap.get(output.dataId);
   info.values = new Int32Array(pixelArray);
+
+  const infoWithAtomic = info;
+  infoWithAtomic.atomic = true;
+  backend.tensorMap.delete(output.dataId);
+  backend.tensorMap.set(output.dataId, infoWithAtomic);
   backend.maybeReleaseBuffer(output.dataId);
 
-  backend.uploadToGPU(output.dataId);
+  backend.uploadToGPU(output.dataId, false);
   return output;
 }

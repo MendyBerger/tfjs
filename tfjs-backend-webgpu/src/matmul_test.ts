@@ -138,6 +138,28 @@ describeWebGPU('matmul', () => {
     tf.env().set('WEBGPU_DEFERRED_SUBMIT_BATCH_SIZE', savedFlag);
   });
 
+
+  it('f3233fromPixels + fromPixels', async () => {
+    const pixelsA = new ImageData(1, 1);
+    pixelsA.data[0] = 255;
+    pixelsA.data[1] = 3;
+    pixelsA.data[2] = 4;
+    pixelsA.data[3] = 255;  // Not used.
+    const pixelsB = new ImageData(1, 1);
+    pixelsB.data[0] = 5;
+    pixelsB.data[1] = 6;
+    pixelsB.data[2] = 7;
+    pixelsB.data[3] = 255;  // Not used.
+    const a = tf.browser.fromPixels(pixelsA, 3).toFloat();
+    //console.log(await a.data());
+    const b = tf.browser.fromPixels(pixelsB, 3).toFloat();
+    //console.log(await b.data());
+    const res = a.add(b);
+    expect(res.shape).toEqual([1, 1, 3]);
+    expect(res.dtype).toBe('float32');
+    test_util.expectArraysClose(await res.data(), [260, 9, 11]);
+  });
+
   it('it works in immediate mode.', async () => {
     const savedFlag = tf.env().get('WEBGPU_DEFERRED_SUBMIT_BATCH_SIZE');
     tf.env().set('WEBGPU_DEFERRED_SUBMIT_BATCH_SIZE', 1);
