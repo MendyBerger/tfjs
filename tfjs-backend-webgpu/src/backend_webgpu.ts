@@ -305,7 +305,7 @@ export class WebGPUBackend extends KernelBackend {
   }
 
   getBuffer(dataId: DataId) {
-    console.error("uploadToGPU atomic");
+    console.error('uploadToGPU atomic');
     this.uploadToGPU(dataId);
     return this.tensorMap.get(dataId).bufferInfo.buffer;
   }
@@ -443,8 +443,8 @@ export class WebGPUBackend extends KernelBackend {
       const data = await this.getBufferData(info);
       console.log(data);
       console.log(JSON.stringify(info));
-      vals =
-          webgpu_util.ArrayBufferToTypedArray(data as ArrayBuffer, info.dtype, info.atomic);
+      vals = webgpu_util.ArrayBufferToTypedArray(
+          data as ArrayBuffer, info.dtype, info.atomic);
       console.log(vals);
     }
     this.convertAndCacheOnCPU(dataId, vals);
@@ -560,7 +560,7 @@ export class WebGPUBackend extends KernelBackend {
     const info = this.tensorMap.get(dataId);
 
     // TODO: before or after buffer!=null?
-    if(atomic === true) {
+    if (atomic === true) {
       const infoWithAtomic = info;
       infoWithAtomic.atomic = true;
       this.tensorMap.delete(dataId);
@@ -577,9 +577,9 @@ export class WebGPUBackend extends KernelBackend {
     if (info.values) {
       let gpuValues = info.values;
       if (info.values instanceof Int32Array && atomic === false) {
-         gpuValues = Float32Array.from(info.values);
+        gpuValues = Float32Array.from(info.values);
       }
-  
+
       this.queue.writeBuffer(
           info.bufferInfo.buffer, 0, gpuValues as ArrayBuffer);
       // TODO: WebGPU doesn't support read data synchronously from GPU to CPU.
@@ -720,6 +720,15 @@ export class WebGPUBackend extends KernelBackend {
     return this.layoutCache[inputEntrySize];
   }
 
+  private updateTensorInfo(dataId: DataId) {
+    const info = this.tensorMap.get(dataId);
+    const infoWithAtomic = info;
+    console.log(infoWithAtomic.atomic);
+    infoWithAtomic.atomic = true;
+    this.tensorMap.delete(dataId);
+    this.tensorMap.set(dataId, infoWithAtomic);
+  }
+
   public runWebGPUProgram(
       program: webgpu_program.WebGPUProgram, inputs: TensorInfo[],
       outputDtype: DataType,
@@ -736,15 +745,8 @@ export class WebGPUBackend extends KernelBackend {
         return output;
       }
       this.uploadToGPU(output.dataId, program.atomic);
-    } else {
-          // TODO: before or after buffer!=null?
-      if(program.atomic === true) {
-        const info = this.tensorMap.get(output.dataId);
-        const infoWithAtomic = info;
-        infoWithAtomic.atomic = true;
-        this.tensorMap.delete(output.dataId);
-        this.tensorMap.set(output.dataId, infoWithAtomic);
-      }
+    } else if (program.atomic === true) {
+      this.updateTensorInfo(output.dataId);
     }
 
     // There are five kinds of uniforms: NAN, shapes, shape strides, program
@@ -865,12 +867,14 @@ export class WebGPUBackend extends KernelBackend {
   runFromPixelsProgram(
       program: FromPixelsProgram, output: GPUBuffer, layout: WebGPULayout,
       externalResource: GPUExternalTexture|GPUTextureView, outputId: DataId) {
-
+    /*
     const info = this.tensorMap.get(outputId);
     const infoWithAtomic = info;
     infoWithAtomic.atomic = true;
     this.tensorMap.delete(outputId);
     this.tensorMap.set(outputId, infoWithAtomic);
+    */
+    this.updateTensorInfo(outputId);
 
     const bindGroup = this.device.createBindGroup({
       layout: layout.bindGroupLayout,

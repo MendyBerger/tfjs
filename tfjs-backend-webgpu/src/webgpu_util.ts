@@ -159,12 +159,12 @@ export function GPUBytesPerElement(dtype: DataType): number {
 
 export function ArrayBufferToTypedArray(data: ArrayBuffer, dtype: DataType, atomic= false) {
   if (dtype === 'float32') {
-    console.log(new Float32Array(data));
-    console.log(new Int32Array(data));
+    //console.log(new Float32Array(data));
+    //console.log(new Int32Array(data));
     return new Float32Array(data);
   } else if (dtype === 'int32') {
-    console.log(new Float32Array(data));
-    console.log(new Int32Array(data));
+    //console.log(new Float32Array(data));
+    //console.log(new Int32Array(data));
     if (atomic) {
       return new Int32Array(data);
     }
