@@ -441,11 +441,8 @@ export class WebGPUBackend extends KernelBackend {
           realValues as Float32Array, imagValues as Float32Array);
     } else {
       const data = await this.getBufferData(info);
-      //console.log(data);
-      //console.log(JSON.stringify(info));
       vals = webgpu_util.ArrayBufferToTypedArray(
           data as ArrayBuffer, info.dtype, info.atomic);
-      //console.log(vals);
     }
     this.convertAndCacheOnCPU(dataId, vals);
     return vals;
@@ -777,7 +774,6 @@ export class WebGPUBackend extends KernelBackend {
             `parts.`);
       }
       this.uploadToGPU(input.dataId, program.atomic);
-      // console.log(this.tensorMap.get(input.dataId).dtype);
       return {
         // Returning dtype from tensorMap because it reflects dtype
         // of underlying buffer, rather than abstract dtype.
@@ -801,7 +797,6 @@ export class WebGPUBackend extends KernelBackend {
         this.getCachedOrCreateLayout(program.variableNames.length);
 
     const pipeline = this.getAndSavePipeline(key, () => {
-      console.log('dtype:' + program.constructor.name + ', ' + bufferTypes);
       return webgpu_program.compileProgram(
           this.device, program, pipelineLayout, inputsData, output);
     });
