@@ -561,10 +561,7 @@ export class WebGPUBackend extends KernelBackend {
 
     // TODO: before or after buffer!=null?
     if (atomic === true) {
-      const infoWithAtomic = info;
-      infoWithAtomic.atomic = true;
-      this.tensorMap.delete(dataId);
-      this.tensorMap.set(dataId, infoWithAtomic);
+      this.setTensorAsAtomic(dataId, info);
     }
 
     if (info.bufferInfo.buffer != null) {
@@ -720,9 +717,8 @@ export class WebGPUBackend extends KernelBackend {
     return this.layoutCache[inputEntrySize];
   }
 
-  private updateTensorInfo(dataId: DataId) {
-    const info = this.tensorMap.get(dataId);
-    const infoWithAtomic = info;
+  private setTensorAsAtomic(dataId: DataId, info?: TensorBufferInfo) {
+    const infoWithAtomic = info ? info : this.tensorMap.get(dataId);
     infoWithAtomic.atomic = true;
     this.tensorMap.delete(dataId);
     this.tensorMap.set(dataId, infoWithAtomic);
@@ -745,7 +741,7 @@ export class WebGPUBackend extends KernelBackend {
       }
       this.uploadToGPU(output.dataId, program.atomic);
     } else if (program.atomic === true) {
-      this.updateTensorInfo(output.dataId);
+      this.setTensorAsAtomic(output.dataId);
     }
 
     // There are five kinds of uniforms: NAN, shapes, shape strides, program
@@ -866,7 +862,7 @@ export class WebGPUBackend extends KernelBackend {
   runFromPixelsProgram(
       program: FromPixelsProgram, output: GPUBuffer, layout: WebGPULayout,
       externalResource: GPUExternalTexture|GPUTextureView, outputId: DataId) {
-    this.updateTensorInfo(outputId);
+    this.setTensorAsAtomic(outputId);
 
     const bindGroup = this.device.createBindGroup({
       layout: layout.bindGroupLayout,
