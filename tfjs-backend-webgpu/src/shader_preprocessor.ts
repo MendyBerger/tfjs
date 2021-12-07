@@ -107,7 +107,7 @@ export function makeShader(
     const getCoords = generateGetCoordsFromFlatIndex(outputData.shape);
     const outputBufferStr = `
       [[block]] struct Matrix0 {
-        numbers: array<${mapToWgslTypes(outputData.dtype, program.isVec4)}>;
+        numbers: array<f32>;
       };
       [[block]] struct Uniform {
         size            : i32;

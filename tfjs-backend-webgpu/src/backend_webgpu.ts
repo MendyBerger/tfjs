@@ -441,11 +441,11 @@ export class WebGPUBackend extends KernelBackend {
           realValues as Float32Array, imagValues as Float32Array);
     } else {
       const data = await this.getBufferData(info);
-      console.log(data);
-      console.log(JSON.stringify(info));
+      //console.log(data);
+      //console.log(JSON.stringify(info));
       vals = webgpu_util.ArrayBufferToTypedArray(
           data as ArrayBuffer, info.dtype, info.atomic);
-      console.log(vals);
+      //console.log(vals);
     }
     this.convertAndCacheOnCPU(dataId, vals);
     return vals;
@@ -717,7 +717,7 @@ export class WebGPUBackend extends KernelBackend {
     return this.layoutCache[inputEntrySize];
   }
 
-  private setTensorAsAtomic(dataId: DataId, info?: TensorBufferInfo) {
+  public setTensorAsAtomic(dataId: DataId, info?: TensorBufferInfo) {
     const infoWithAtomic = info ? info : this.tensorMap.get(dataId);
     infoWithAtomic.atomic = true;
     this.tensorMap.delete(dataId);
@@ -777,7 +777,7 @@ export class WebGPUBackend extends KernelBackend {
             `parts.`);
       }
       this.uploadToGPU(input.dataId, program.atomic);
-      console.log(this.tensorMap.get(input.dataId).dtype);
+      // console.log(this.tensorMap.get(input.dataId).dtype);
       return {
         // Returning dtype from tensorMap because it reflects dtype
         // of underlying buffer, rather than abstract dtype.
@@ -862,7 +862,7 @@ export class WebGPUBackend extends KernelBackend {
   runFromPixelsProgram(
       program: FromPixelsProgram, output: GPUBuffer, layout: WebGPULayout,
       externalResource: GPUExternalTexture|GPUTextureView, outputId: DataId) {
-    this.setTensorAsAtomic(outputId);
+    //this.setTensorAsAtomic(outputId);
 
     const bindGroup = this.device.createBindGroup({
       layout: layout.bindGroupLayout,
