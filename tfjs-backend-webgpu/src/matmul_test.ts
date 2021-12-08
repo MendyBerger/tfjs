@@ -26,6 +26,8 @@ describeWebGPU('matmul', () => {
         [100, 101, 102, 777, 778, 779, 1000, 1001, 1002], [3, 3], 'int32');
     const shape = [5, 3];
     const result = tf.scatterND(indices, updates, shape);
+    // Below line will make the case pass.
+    // console.log(await result.data());
     expect(result.shape).toEqual(shape);
     expect(result.dtype).toEqual(updates.dtype);
     const add2 = tf.tensor2d(
