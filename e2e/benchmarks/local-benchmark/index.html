@@ -92,6 +92,7 @@ limitations under the License.
     let urlState = null;
     let runTimes = 50;
     let warmupTimes = 1;
+    let tracing = false;
     // Default do not run any task.
     let task = '';
     function getURLState(url) {
@@ -107,6 +108,9 @@ limitations under the License.
       }
       if (params.has('task')) {
         task = params.get('task');
+      }
+      if (params.has('tracing')) {
+        tracing = params.get('tracing') === 'true';
       }
       return params;
     }
@@ -578,6 +582,66 @@ limitations under the License.
       appendRow(timeTable, '', '');
     }
 
+    function consoleSave(data, filename = 'gpudata.json') {
+      if (!data) {
+        console.error('Console.save: No data');
+        return;
+      }
+
+      if (typeof data === 'object') {
+        data = JSON.stringify(data, undefined, 4);
+      }
+
+      var blob = new Blob([data], { type: 'text/json' }),
+        e = document.createEvent('MouseEvents'), a = document.createElement('a');
+
+      a.download = filename;
+      a.href = window.URL.createObjectURL(blob);
+      a.dataset.downloadurl = ['text/json', a.download, a.href].join(':');
+      e.initMouseEvent(
+        'click', true, false, window, 0, 0, 0, 0, 0, false, false, false, false,
+        0, null);
+      a.dispatchEvent(e);
+    }
+
+    async function tracingPredictTime(repeat = 10) {
+      await showMsg(`Running tracing`);
+      tf.env().set('TRACING', true);
+      const tracingStart = performance.now();
+      let [timeInfo, kernelTimes] = await timeInferenceForTracing(() => predict(model), repeat);
+      //const kernelTimes = await tf.backend().getKernelTimes();
+      //consoleSave(timeInfo, "tracing_predict.json");
+      // consoleSave(kernelTimes, "tracing_gpudata.json");
+      console.log("predictbegin"+JSON.stringify(timeInfo)+ "predictend");
+      for (let item in kernelTimes) {
+        console.log('gpudatabegin' + JSON.stringify(kernelTimes[item]) + 'gpudataend');
+      }
+      // TODO: merge?
+      // const tracingResults = {timeInfo, kernelTimes};
+      // consoleSave(tracingResults, "tracing_results.json");
+      appendRow(timeTable, `Tracing average ${repeat}`, printTime(timeInfo.averageTime));
+      tf.env().set('TRACING', false);
+      await showMsg(null);
+    }
+
+    async function tracingPredictTimeSingle() {
+      await showMsg(`Running tracing`);
+      tf.env().set('TRACING', true);
+      const tracingStart = performance.now();
+      let timeInfo = await timeInference(() => predict(model), 10);
+      const kernelTimes = await tf.backend().getKernelTimes();
+      consoleSave(timeInfo, "tracing_predict.json");
+      consoleSave(kernelTimes, "tracing_gpudata.json");
+      console.log("predictbegin"+JSON.stringify(timeInfo)+ "predictend");
+      console.log("gpudatabegin"+JSON.stringify(kernelTimes)+"gpudataend");
+      // TODO: merge?
+      // const tracingResults = {timeInfo, kernelTimes};
+      // consoleSave(tracingResults, "tracing_results.json");
+      appendRow(timeTable, 'Tracing predict time', timeInfo['times'][0]);
+      tf.env().set('TRACING', false);
+      await showMsg(null);
+    }
+
     async function profileMemoryAndKernelTime() {
       await showMsg('Profile memory and kernels');
 
@@ -714,7 +778,11 @@ limitations under the License.
 
       await warmUpAndRecordTime();
       await measureAveragePredictTime();
-      await profileMemoryAndKernelTime();
+      if (tracing) {
+        await tracingPredictTime();
+      } else {
+        await profileMemoryAndKernelTime();
+      }
       urlState = null;
     }
 
