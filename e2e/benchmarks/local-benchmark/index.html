@@ -92,6 +92,7 @@ limitations under the License.
     let urlState = null;
     let runTimes = 50;
     let warmupTimes = 1;
+    let tracing = false;
     // Default do not run any task.
     let task = '';
     function getURLState(url) {
@@ -107,6 +108,9 @@ limitations under the License.
       }
       if (params.has('task')) {
         task = params.get('task');
+      }
+      if (params.has('tracing')) {
+        tracing = params.get('tracing') === 'true';
       }
       return params;
     }
@@ -578,6 +582,15 @@ limitations under the License.
       appendRow(timeTable, '', '');
     }
 
+    async function tracingPredictTime() {
+      await showMsg(`Running tracing`);
+      tf.env().set('TRACING', true);
+      let timeInfo = await timeInference(() => predict(model), 1);
+      console.log(JSON.stringify(timeInfo));
+      tf.env().set('TRACING', false);
+      await showMsg(null);
+    }
+
     async function profileMemoryAndKernelTime() {
       await showMsg('Profile memory and kernels');
 
@@ -714,7 +727,11 @@ limitations under the License.
 
       await warmUpAndRecordTime();
       await measureAveragePredictTime();
-      await profileMemoryAndKernelTime();
+      if (tracing) {
+        await tracingPredictTime();
+      } else {
+        await profileMemoryAndKernelTime();
+      }
       urlState = null;
     }
 
