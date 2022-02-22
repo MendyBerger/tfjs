@@ -69,6 +69,28 @@ type QueryResults = number|Array<{name: string; query: number[]}>;
 const CPU_HANDOFF_SIZE_THRESHOLD =
     env().getNumber('WEBGPU_CPU_HANDOFF_SIZE_THRESHOLD');
 
+function consoleSave(data: any, filename = 'tracing_gpudata.json') {
+  if (!data) {
+    console.error('Console.save: No data');
+    return;
+  }
+
+  if (typeof data === 'object') {
+    data = JSON.stringify(data, undefined, 4);
+  }
+
+  var blob = new Blob([data], {type: 'text/json'}),
+      e = document.createEvent('MouseEvents'), a = document.createElement('a');
+
+  a.download = filename;
+  a.href = window.URL.createObjectURL(blob);
+  a.dataset.downloadurl = ['text/json', a.download, a.href].join(':');
+  e.initMouseEvent(
+      'click', true, false, window, 0, 0, 0, 0, 0, false, false, false, false,
+      0, null);
+  a.dispatchEvent(e);
+}
+
 function allTimeFunction(
     arrayBuf: BigUint64Array, querySetSize: number,
     kernelNames: string[]): QueryResults {
@@ -78,9 +100,11 @@ function allTimeFunction(
     queryResults[i] = {
       name: kernelNames[i],
       query: [Number(arrayBuf[2 * i]), Number(arrayBuf[2 * i + 1])]
+      // query: [(Number(arrayBuf[2 * i + 1]) - Number(arrayBuf[2 * i]))/1000000]
     };
   }
   console.log(JSON.stringify(queryResults));
+  consoleSave(queryResults);
   return queryResults;
 }
 
@@ -411,6 +435,7 @@ export class WebGPUBackend extends KernelBackend {
     }
 
     if (this.supportTimeQuery && env().getBool('TRACING')) {
+      consoleSave(performance.now(), "tracing_end.json");
       await this.getAllTimeFromQuerySet();
     }
 
