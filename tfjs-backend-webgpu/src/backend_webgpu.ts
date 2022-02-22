@@ -103,8 +103,6 @@ function allTimeFunction(
       // query: [(Number(arrayBuf[2 * i + 1]) - Number(arrayBuf[2 * i]))/1000000]
     };
   }
-  console.log(JSON.stringify(queryResults));
-  consoleSave(queryResults);
   return queryResults;
 }
 
@@ -435,8 +433,7 @@ export class WebGPUBackend extends KernelBackend {
     }
 
     if (this.supportTimeQuery && env().getBool('TRACING')) {
-      consoleSave(performance.now(), "tracing_end.json");
-      await this.getAllTimeFromQuerySet();
+      // consoleSave(performance.now(), "tracing_end.json");
     }
 
     return values as backend_util.BackendValues;
@@ -940,11 +937,18 @@ export class WebGPUBackend extends KernelBackend {
     return timeElapsed;
   }
 
-  async getAllTimeFromQuerySet() {
+  async getAllTimeFromQuerySet(): Promise<QueryResults> {
     if (this.querySetIndex !== 0) {
-      await this.getTimeFromQuerySetCommon(
+      return await this.getTimeFromQuerySetCommon(
           this.querySetIndex, 0, this.kernelNames, allTimeFunction);
     }
+    return null;
+  }
+
+  async getKernelTimes(): Promise<number|{name: string; query: number[]}[]> {
+    // TODO: clean buffer, query index.
+    consoleSave(performance.now(), "tracing_end.json");
+    return await this.getAllTimeFromQuerySet();
   }
 
   async getTimeFromQuerySetCommon(

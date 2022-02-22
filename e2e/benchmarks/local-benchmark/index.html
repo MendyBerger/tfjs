@@ -611,6 +611,7 @@ limitations under the License.
       let timeInfo = await timeInference(() => predict(model), 1);
       consoleSave(tracingStart, "tracing_start.json");
       consoleSave(timeInfo, "tracing_predict.json");
+      consoleSave((await tf.backend().getKernelTimes()), "tracing_gpudata.json");
       tf.env().set('TRACING', false);
       await showMsg(null);
     }
