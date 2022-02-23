@@ -69,28 +69,6 @@ type QueryResults = number|Array<{name: string; query: number[]}>;
 const CPU_HANDOFF_SIZE_THRESHOLD =
     env().getNumber('WEBGPU_CPU_HANDOFF_SIZE_THRESHOLD');
 
-function consoleSave(data: any, filename = 'tracing_gpudata.json') {
-  if (!data) {
-    console.error('Console.save: No data');
-    return;
-  }
-
-  if (typeof data === 'object') {
-    data = JSON.stringify(data, undefined, 4);
-  }
-
-  var blob = new Blob([data], {type: 'text/json'}),
-      e = document.createEvent('MouseEvents'), a = document.createElement('a');
-
-  a.download = filename;
-  a.href = window.URL.createObjectURL(blob);
-  a.dataset.downloadurl = ['text/json', a.download, a.href].join(':');
-  e.initMouseEvent(
-      'click', true, false, window, 0, 0, 0, 0, 0, false, false, false, false,
-      0, null);
-  a.dispatchEvent(e);
-}
-
 function allTimeFunction(
     arrayBuf: BigUint64Array, querySetSize: number,
     kernelNames: string[]): QueryResults {
@@ -430,10 +408,6 @@ export class WebGPUBackend extends KernelBackend {
           this.dummyContext !== undefined,
           () => `Fail to get context for profiling tool`);
       this.dummyContext.getCurrentTexture();
-    }
-
-    if (this.supportTimeQuery && env().getBool('TRACING')) {
-      // consoleSave(performance.now(), "tracing_end.json");
     }
 
     return values as backend_util.BackendValues;
@@ -947,7 +921,6 @@ export class WebGPUBackend extends KernelBackend {
 
   async getKernelTimes(): Promise<number|{name: string; query: number[]}[]> {
     // TODO: clean buffer, query index.
-    consoleSave(performance.now(), "tracing_end.json");
     return await this.getAllTimeFromQuerySet();
   }
 
