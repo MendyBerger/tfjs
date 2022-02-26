@@ -91,6 +91,7 @@ limitations under the License.
 
     let urlState = null;
     let runTimes = 50;
+    let tracingRepeat = 10;
     let warmupTimes = 1;
     let tracing = false;
     // Default do not run any task.
@@ -111,6 +112,9 @@ limitations under the License.
       }
       if (params.has('tracing')) {
         tracing = params.get('tracing') === 'true';
+      }
+      if (params.has('tracingrepeat')) {
+        tracingRepeat = Number(params.get('tracingrepeat'));
       }
       return params;
     }
@@ -779,7 +783,7 @@ limitations under the License.
       await warmUpAndRecordTime();
       await measureAveragePredictTime();
       if (tracing) {
-        await tracingPredictTime();
+        await tracingPredictTime(tracingRepeat);
       } else {
         await profileMemoryAndKernelTime();
       }
