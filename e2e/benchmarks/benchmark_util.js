@@ -282,8 +282,6 @@ async function timeInferenceForTracing(predict, numRuns = 1) {
     const value = await downloadValuesFromTensorContainer(res);
     const elapsedTime = performance.now() - start;
     const kernelTime = await tf.backend().getKernelTimes();
-    // console.log("predictbegin"+JSON.stringify(timeInfo)+ "predictend");
-    // console.log('gpudatabegin' + JSON.stringify(kernelTimes) + 'gpudataend');
     tf.dispose(res);
     times.push(elapsedTime);
     kernelTimes.push(kernelTime);

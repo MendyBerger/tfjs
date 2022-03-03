@@ -613,16 +613,10 @@ limitations under the License.
       tf.env().set('TRACING', true);
       const tracingStart = performance.now();
       let [timeInfo, kernelTimes] = await timeInferenceForTracing(() => predict(model), repeat);
-      //const kernelTimes = await tf.backend().getKernelTimes();
-      //consoleSave(timeInfo, "tracing_predict.json");
-      // consoleSave(kernelTimes, "tracing_gpudata.json");
       console.log("predictbegin"+JSON.stringify(timeInfo)+ "predictend");
       for (let item in kernelTimes) {
         console.log('gpudatabegin' + JSON.stringify(kernelTimes[item]) + 'gpudataend');
       }
-      // TODO: merge?
-      // const tracingResults = {timeInfo, kernelTimes};
-      // consoleSave(tracingResults, "tracing_results.json");
       appendRow(timeTable, `Tracing average ${repeat}`, printTime(timeInfo.averageTime));
       tf.env().set('TRACING', false);
       await showMsg(null);
