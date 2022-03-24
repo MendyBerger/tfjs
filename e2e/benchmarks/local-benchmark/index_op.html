@@ -1,0 +1,112 @@
+<!-- Copyright 2019 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================-->
+
+<html>
+
+<head>
+    <title>TensorFlow.js Op demo</title>
+</head>
+
+<body>
+    <h2>TensorFlow.js Op demo</h2>
+    <div> Parameter: index_op.html?backend=webgpu&localBuild=webgl,webgpu,core </div>
+    <script>
+        'use strict';
+
+        async function runTFJS(backend) {
+            await tf.setBackend(backend);
+            // await tf.ready();
+            const a = tf.tensor1d([1, 2, 3, 4]);
+            const b = tf.tensor1d([10, 20, 30, 40]);
+            tf.add(a, b).print();
+        }
+
+        async function onPageLoad() {
+            console.log(performance.now());
+            const backend = await setupTFJS();
+            await runTFJS(backend);
+        }
+
+        // First option.
+        // onPageLoad();
+
+        // Second option
+        (async function () {
+            console.log(performance.now());
+            await onPageLoad();
+        })();
+
+
+        // Below are help code.
+
+        function getURLState(url) {
+            let params = new URLSearchParams(url);
+            return params;
+        }
+
+        // Promise is used to guarantee scripts are loaded in order.
+        async function loadScript(url) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.onload = resolve;
+                script.onerror = reject;
+                script.src = url;
+                if (url.startsWith('http')) {
+                    script.crossOrigin = 'anonymous';
+                }
+                document.body.append(script);
+            })
+        }
+
+        function processUrls(urls, localBuild) {
+            for (let i = 0; i < urls.length; i++) {
+                let name = urls[i].split('/')[0].replace('tfjs-', '').replace('backend-', '');
+                if (localBuild.includes(name)) {
+                    urls[i] = `../../../dist/bin/${urls[i]}`;
+                } else {
+                    urls[i] = `https://unpkg.com/@tensorflow/${urls[i].replace('/', '@latest/')}`;
+                }
+            }
+        }
+
+        async function setupTFJS() {
+            const urlState = getURLState(location.search);
+
+            let urls = [
+                'tfjs-core/dist/tf-core.js',
+                'tfjs-backend-cpu/dist/tf-backend-cpu.js',
+                'tfjs-backend-webgl/dist/tf-backend-webgl.js',
+                'tfjs-backend-webgpu/dist/tf-backend-webgpu.js',
+                'tfjs-layers/dist/tf-layers.js',
+                'tfjs-converter/dist/tf-converter.js',
+                'tfjs-backend-wasm/dist/tf-backend-wasm.js',
+                'tfjs-automl/dist/tf-automl.js',
+            ];
+            let localBuild = [];
+            if (urlState && urlState.has('localBuild')) {
+                localBuild = urlState.get('localBuild').split(',');
+            }
+            processUrls(urls, localBuild);
+
+            for (let url of urls) {
+                await loadScript(url);
+            }
+            return urlState.get('backend');
+        }
+
+    </script>
+</body>
+
+</html>
