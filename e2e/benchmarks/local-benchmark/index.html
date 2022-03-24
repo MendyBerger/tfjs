@@ -208,7 +208,6 @@ limitations under the License.
         if (!tf.engine().backendNames().includes(state.backend)) {
           return;
         }
-        await tf.ready();
         if (state.isFlagChanged) {
           await setEnvFlags(state.flags);
           envDiv.innerHTML = '';
@@ -708,7 +707,6 @@ limitations under the License.
       if (!tf.engine().backendNames().includes(state.backend) && !isTflite()) {
         return;
       }
-      await tf.ready();
       if (state.isFlagChanged) {
         await setEnvFlags(state.flags);
         envDiv.innerHTML = '';
@@ -1007,7 +1005,9 @@ limitations under the License.
       modelController.domElement.children[0].innerHTML = tfliteBenchmarksHtml;
     }
 
-    onPageLoad();
+    (async function () {
+      await onPageLoad();
+    })();
   </script>
 </body>
 
