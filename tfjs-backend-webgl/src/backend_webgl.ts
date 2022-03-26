@@ -140,7 +140,7 @@ export class MathBackendWebGL extends KernelBackend {
   private gpgpuCreatedLocally: boolean;
   private numMBBeforeWarning: number;
   private warnedAboutMemory = false;
-  private webGLQueries : WebGLQuery[] = [];
+  private webGLQueries: {name: string, query: WebGLQuery}[] = [];
 
   constructor(gpuResource?: GPGPUContext|HTMLCanvasElement|OffscreenCanvas) {
     super();
@@ -609,10 +609,10 @@ export class MathBackendWebGL extends KernelBackend {
     query: number[]}[] > {
     const queryResults: QueryResults = [];
     for(let i =0 ;i < this.webGLQueries.length; i ++) {
-      const kernelTime = await this.getQueryTime(this.webGLQueries[i]);
+      const kernelTime = await this.getQueryTime(this.webGLQueries[i].query);
       queryResults[i] = {
-        name: 'UnknowWebGLProgram',
-        query: [kernelTime,kernelTime]
+        name: this.webGLQueries[i].name,
+        query: [kernelTime, kernelTime]
       };
     }
     return queryResults;
@@ -974,12 +974,13 @@ export class MathBackendWebGL extends KernelBackend {
     dataToDispose.forEach(info => this.disposeIntermediateTensorInfo(info));
 
     if (shouldTimeProgram) {
+      const name = program.constructor.name;
       query = this.endTimer(query);
       if (tracing) {
-        this.webGLQueries.push(query);
+        this.webGLQueries.push({name: name, query: query});
       } else
-      this.activeTimers.push(
-          {name: program.constructor.name, query: this.getQueryTime(query)});
+        this.activeTimers.push(
+            {name: name, query: this.getQueryTime(query)});
     }
 
     const glFlushThreshold = env().get('WEBGL_FLUSH_THRESHOLD');
