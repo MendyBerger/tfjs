@@ -46,7 +46,7 @@ const whereImpl = kernel_impls.whereImpl;
 
 export const EPSILON_FLOAT32 = 1e-7;
 export const EPSILON_FLOAT16 = 1e-4;
-
+type QueryResults = number|Array<{name: string; query: number[]}>;
 type KernelInfo = {
   name: string; query: Promise<number>;
 };
@@ -140,6 +140,7 @@ export class MathBackendWebGL extends KernelBackend {
   private gpgpuCreatedLocally: boolean;
   private numMBBeforeWarning: number;
   private warnedAboutMemory = false;
+  private webGLQueries : WebGLQuery[] = [];
 
   constructor(gpuResource?: GPGPUContext|HTMLCanvasElement|OffscreenCanvas) {
     super();
@@ -602,6 +603,21 @@ export class MathBackendWebGL extends KernelBackend {
     return timerQuery.endMs - timerQuery.startMs;
   }
 
+
+  async getKernelTimes(): Promise < number|{
+    name: string;
+    query: number[]}[] > {
+    const queryResults: QueryResults = [];
+    for(let i =0 ;i < this.webGLQueries.length; i ++) {
+      const kernelTime = await this.getQueryTime(this.webGLQueries[i]);
+      queryResults[i] = {
+        name: 'UnknowWebGLProgram',
+        query: [kernelTime,kernelTime]
+      };
+    }
+    return queryResults;
+  }
+
   private pendingDeletes = 0;
 
   /**
@@ -943,7 +959,8 @@ export class MathBackendWebGL extends KernelBackend {
       return gpgpu_math.compileProgram(
           this.gpgpu, program, inputsData, outputData);
     });
-    const shouldTimeProgram = this.activeTimers != null;
+    const tracing = env().getBool('TRACING');
+    const shouldTimeProgram = this.activeTimers != null || tracing;
     let query: WebGLQuery|CPUTimerQuery;
     if (shouldTimeProgram) {
       query = this.startTimer();
@@ -958,6 +975,9 @@ export class MathBackendWebGL extends KernelBackend {
 
     if (shouldTimeProgram) {
       query = this.endTimer(query);
+      if (tracing) {
+        this.webGLQueries.push(query);
+      } else
       this.activeTimers.push(
           {name: program.constructor.name, query: this.getQueryTime(query)});
     }
