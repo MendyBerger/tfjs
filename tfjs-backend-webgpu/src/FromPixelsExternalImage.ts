@@ -71,8 +71,11 @@ export function fromPixelsExternalImage(args: {
 
   info.bufferInfo.buffer = backend.acquireBuffer(info.bufferInfo.byteSize);
 
-  const uniformData = [size, numChannels, ...strides, ...program.dispatch];
-  program.setUniform(backend.device, uniformData);
+  const uniformData = [
+    {type: 'uint32', data: [size]}, {type: 'uint32', data: [numChannels]},
+    {type: 'uint32', data: [...strides]},
+    {type: 'uint32', data: [...program.dispatch]}
+  ];
 
   let externalResource: GPUExternalTexture|GPUTextureView;
   if (useImport) {
@@ -86,6 +89,7 @@ export function fromPixelsExternalImage(args: {
   }
 
   backend.runFromPixelsProgram(
-      program, info.bufferInfo.buffer, layout, externalResource, output.dataId);
+      program, info.bufferInfo.buffer, layout, externalResource, output.dataId,
+      uniformData);
   return output;
 }

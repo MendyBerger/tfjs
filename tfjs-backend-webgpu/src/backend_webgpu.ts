@@ -62,38 +62,41 @@ export interface WebGPUTimingInfo extends TimingInfo {
   downloadWaitMs: number;
 }
 
+type ProgramUniform = Array<{type: string; data: number[]}>;
+
 // Empirically determined constant used to determine size threshold for handing
 // off execution to the CPU.
 const CPU_HANDOFF_SIZE_THRESHOLD =
     env().getNumber('WEBGPU_CPU_HANDOFF_SIZE_THRESHOLD');
 
 // Reshape dispatch, not to exceed device limits.
-const reshapeDispatch = (device: GPUDevice,
-    program: webgpu_program.WebGPUProgram): [number, number, number] => {
-  const MAX_COMPUTE_PER_DIMENSION_DISPATCH_SIZE =
-      device.limits.maxComputeWorkgroupsPerDimension;
-  const layout = program['dispatchLayout'];
-  const dispatch = program['dispatch'];
-  if (dispatch.every((d) => d <= MAX_COMPUTE_PER_DIMENSION_DISPATCH_SIZE)) {
-    return dispatch;
-  }
+const reshapeDispatch =
+    (device: GPUDevice,
+     program: webgpu_program.WebGPUProgram): [number, number, number] => {
+      const MAX_COMPUTE_PER_DIMENSION_DISPATCH_SIZE =
+          device.limits.maxComputeWorkgroupsPerDimension;
+      const layout = program['dispatchLayout'];
+      const dispatch = program['dispatch'];
+      if (dispatch.every((d) => d <= MAX_COMPUTE_PER_DIMENSION_DISPATCH_SIZE)) {
+        return dispatch;
+      }
 
-  util.assert(
-      dispatch[0] > MAX_COMPUTE_PER_DIMENSION_DISPATCH_SIZE &&
-          layout.y === undefined && layout.z === undefined,
-      () => 'Dispatch size exceeds WebGPU limits in Y or Z dimension.');
+      util.assert(
+          dispatch[0] > MAX_COMPUTE_PER_DIMENSION_DISPATCH_SIZE &&
+              layout.y === undefined && layout.z === undefined,
+          () => 'Dispatch size exceeds WebGPU limits in Y or Z dimension.');
 
-  let dispatchAverage = Math.ceil(Math.sqrt(dispatch[0]));
-  if (dispatchAverage > MAX_COMPUTE_PER_DIMENSION_DISPATCH_SIZE) {
-    dispatchAverage = Math.ceil(Math.cbrt(dispatch[0]));
-    util.assert(
-        dispatchAverage <= MAX_COMPUTE_PER_DIMENSION_DISPATCH_SIZE,
-        () => 'Total dispatch size exceeds WebGPU maximum.');
-    return [dispatchAverage, dispatchAverage, dispatchAverage];
-  } else {
-    return [dispatchAverage, dispatchAverage, 1];
-  }
-};
+      let dispatchAverage = Math.ceil(Math.sqrt(dispatch[0]));
+      if (dispatchAverage > MAX_COMPUTE_PER_DIMENSION_DISPATCH_SIZE) {
+        dispatchAverage = Math.ceil(Math.cbrt(dispatch[0]));
+        util.assert(
+            dispatchAverage <= MAX_COMPUTE_PER_DIMENSION_DISPATCH_SIZE,
+            () => 'Total dispatch size exceeds WebGPU maximum.');
+        return [dispatchAverage, dispatchAverage, dispatchAverage];
+      } else {
+        return [dispatchAverage, dispatchAverage, 1];
+      }
+    };
 
 export class WebGPUBackend extends KernelBackend {
   device: GPUDevice;
@@ -617,9 +620,7 @@ export class WebGPUBackend extends KernelBackend {
     }
   }
 
-  private makeUniforms(uniformsWithType:
-                           Array<{type: string; data: number[];}>):
-      GPUBindingResource {
+  public makeUniforms(uniformsWithType: ProgramUniform): GPUBindingResource {
     let currentOffset = 0;
     const offsets: number[] = [];
     uniformsWithType.forEach((d) => {
@@ -666,6 +667,13 @@ export class WebGPUBackend extends KernelBackend {
         currentOffset, GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM);
     this.queue.writeBuffer(uniformBuffer, 0, arrayBuffer, 0, currentOffset);
 
+    const uniformInfo = {
+      byteSize: currentOffset,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
+      buffer: uniformBuffer
+    };
+    this.uniformDisposalQueue.push(uniformInfo);
+
     return {offset: 0, size: currentOffset, buffer: uniformBuffer};
   }
 
@@ -707,8 +715,7 @@ export class WebGPUBackend extends KernelBackend {
 
   public runWebGPUProgram(
       program: webgpu_program.WebGPUProgram, inputs: TensorInfo[],
-      outputDtype: DataType,
-      programUniforms?: Array<{type: string; data: number[]}>,
+      outputDtype: DataType, programUniforms?: ProgramUniform,
       output?: TensorInfo): TensorInfo {
     if (!output) {
       output = this.makeTensorInfo(program.outputShape, outputDtype);
@@ -813,15 +820,6 @@ export class WebGPUBackend extends KernelBackend {
     });
     this.commandQueueOwnedIds.add(output.dataId);
 
-    const uniformInfo = {
-      // tslint:disable-next-line: no-unnecessary-type-assertion
-      byteSize: (uniforms as GPUBufferBinding).size,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
-      // tslint:disable-next-line: no-unnecessary-type-assertion
-      buffer: (uniforms as GPUBufferBinding).buffer
-    };
-    this.uniformDisposalQueue.push(uniformInfo);
-
     if (env().get('WEBGPU_DEFERRED_SUBMIT_BATCH_SIZE') as
         number <= this.dispatchNumberInEncoder) {
       this.submitQueue();
@@ -838,8 +836,11 @@ export class WebGPUBackend extends KernelBackend {
 
   runFromPixelsProgram(
       program: FromPixelsProgram, output: GPUBuffer, layout: WebGPULayout,
-      externalResource: GPUExternalTexture|GPUTextureView, outputId: DataId) {
+      externalResource: GPUExternalTexture|GPUTextureView, outputId: DataId,
+      programUniforms: ProgramUniform) {
     program.dispatch = reshapeDispatch(this.device, program);
+
+    const uniforms = this.makeUniforms(programUniforms);
     const bindGroup = this.device.createBindGroup({
       layout: layout.bindGroupLayout,
       entries: [
@@ -856,7 +857,8 @@ export class WebGPUBackend extends KernelBackend {
         {
           binding: 2,
           resource: {
-            buffer: program.uniform,
+            // tslint:disable-next-line: no-unnecessary-type-assertion
+            buffer: (uniforms as GPUBufferBinding).buffer,
           }
         }
       ],

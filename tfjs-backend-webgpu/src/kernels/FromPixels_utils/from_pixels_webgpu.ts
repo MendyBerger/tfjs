@@ -32,8 +32,6 @@ export class FromPixelsProgram implements WebGPUProgram {
       [256, 1, 1];  // The empirical value.
 
   pipeline: GPUComputePipeline;
-  uniform: GPUBuffer;
-  lastUniformData: number[] = [];
 
   inputTexture: GPUTexture = null;
   layout: WebGPULayout = null;
@@ -90,32 +88,6 @@ export class FromPixelsProgram implements WebGPUProgram {
     this.pipeline = pipeline;
   }
 
-  setUniform(device: GPUDevice, uniformData: number[]) {
-    // Create the uniform buffer if it does not exist.
-    // The uniform buffer size is fixed so we can hold
-    // and reuse it always.
-    if (!this.uniform) {
-      const uniformBuffer = device.createBuffer({
-        size: uniformData.length *
-            4,  // The uniform buffer contains two 4 bytes element always.
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-      });
-
-      this.uniform = uniformBuffer;
-    }
-
-    // No need to update uniform buffer if no changes.
-    if (!uniformData ||
-        ((uniformData.length === this.lastUniformData.length) &&
-         uniformData.every((v, i) => v === this.lastUniformData[i]))) {
-      return;
-    }
-
-    device.queue.writeBuffer(this.uniform, 0, new Uint32Array(uniformData));
-
-    this.lastUniformData = uniformData;
-  }
-
   makeInputTexture(device: GPUDevice, pixelWidth: number, pixelHeight: number):
       GPUTexture {
     if (!this.inputTexture || this.lastPixelSize.width !== pixelWidth ||
@@ -139,9 +111,6 @@ export class FromPixelsProgram implements WebGPUProgram {
   dispose() {
     if (this.disposed) {
       return;
-    }
-    if (this.uniform) {
-      this.uniform.destroy();
     }
     if (this.inputTexture) {
       this.inputTexture.destroy();
