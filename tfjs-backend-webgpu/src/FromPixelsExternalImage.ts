@@ -18,7 +18,8 @@
 import {FromPixelsAttrs, TensorInfo, util} from '@tensorflow/tfjs-core';
 
 import {WebGPUBackend} from './backend_webgpu';
-import * as webgpu_program from './webgpu_program';
+import {FromPixelsImportProgram} from './kernels/FromPixels_utils/from_pixels_import_webgpu';
+import {FromPixelsProgram} from './kernels/FromPixels_utils/from_pixels_webgpu';
 
 type ExternalImage = HTMLCanvasElement|ImageBitmap|OffscreenCanvas;
 
@@ -36,56 +37,30 @@ export function fromPixelsExternalImage(args: {
   const strides = util.computeStrides(outShape);
   const output = backend.makeTensorInfo(outShape, 'int32');
   const program =
-      backend.getFromPixelsProgram(useImport ? 'import' : 'copyExternal');
+      getFromPixelsProgram(outShape, useImport ? 'import' : 'copyExternal');
 
-  program.updateOutputShape(outShape);
-
-  // Different outShape will affect preprocessor result,
-  // e.g. getCoordsFromIndex. FromPixelsImageExternalImage needs
-  // to recompile the pipeline to get the correct result.
-  // FromPixelsExternalImage leverages webgpu backend pipeline
-  // cache system to avoid useless recompile.
-  const outputShapes = [output.shape];
-  const outputTypes = [output.dtype, useImport ? 'import' : 'copyExternal'];
-  const key = webgpu_program.makeShaderKey(program, outputShapes, outputTypes);
-
-  const layout = program.getLayout(backend.device);
-
-  const pipeline = backend.getAndSavePipeline(key, () => {
-    return webgpu_program.compileProgram(
-        backend.device, program, layout.pipelineLayout, [], output, true);
-  });
-
-  program.setPipeline(pipeline);
-
-  if (!useImport) {
-    backend.queue.copyExternalImageToTexture(
-        {source: externalImage as ExternalImage, origin: {x: 0, y: 0}}, {
-          texture:
-              program.makeInputTexture(backend.device, outShape[1], outShape[0])
-        },
-        [outShape[1], outShape[0]]);
-  }
-
-  const info = backend.tensorMap.get(output.dataId);
-
-  info.bufferInfo.buffer = backend.acquireBuffer(info.bufferInfo.byteSize);
-
-  const uniformData = [size, numChannels, ...strides, ...program.dispatch];
-  program.setUniform(backend.device, uniformData);
-
-  let externalResource: GPUExternalTexture|GPUTextureView;
-  if (useImport) {
-    const externalTextureDescriptor = {
-      source: externalImage as HTMLVideoElement
-    };
-    externalResource =
-        backend.device.importExternalTexture(externalTextureDescriptor);
-  } else {
-    externalResource = program.inputTexture.createView();
-  }
+  const uniformData = [
+    {type: 'uint32', data: [size]}, {type: 'uint32', data: [numChannels]},
+    {type: 'uint32', data: [...strides]},
+    {type: 'uint32', data: [...program.dispatch]}
+  ];
 
   backend.runFromPixelsProgram(
-      program, info.bufferInfo.buffer, layout, externalResource, output.dataId);
+      program, output, uniformData, useImport, externalImage);
   return output;
+}
+
+function getFromPixelsProgram(
+    outputShape: number[], type: 'copyExternal'|'import'): FromPixelsProgram {
+  switch (type) {
+    case 'copyExternal': {
+      return new FromPixelsProgram(outputShape, false);
+    }
+    case 'import': {
+      return new FromPixelsImportProgram(outputShape, true);
+    }
+    default:
+      util.assert(false, () => `Unsupported fromPixels shape`);
+      return undefined;
+  }
 }

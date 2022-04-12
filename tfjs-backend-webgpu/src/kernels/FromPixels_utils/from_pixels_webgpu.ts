@@ -15,8 +15,6 @@
  * =============================================================================
  */
 
-import {util} from '@tensorflow/tfjs-core';
-
 import {getMainHeaderAndGlobalIndexString} from '../../shader_preprocessor';
 import {WebGPUProgram} from '../../webgpu_program';
 import {computeDispatch, flatDispatchLayout, WebGPULayout} from '../../webgpu_util';
@@ -32,8 +30,6 @@ export class FromPixelsProgram implements WebGPUProgram {
       [256, 1, 1];  // The empirical value.
 
   pipeline: GPUComputePipeline;
-  uniform: GPUBuffer;
-  lastUniformData: number[] = [];
 
   inputTexture: GPUTexture = null;
   layout: WebGPULayout = null;
@@ -42,22 +38,14 @@ export class FromPixelsProgram implements WebGPUProgram {
 
   private disposed = false;
 
-  updateOutputShape(outputShape: number[]) {
-    if (util.arraysEqual(this.outputShape, outputShape)) {
-      return;
-    }
-
+  constructor(outputShape: number[], useImport = false) {
     this.outputShape = outputShape;
-    this.workPerThread = outputShape[2];  // numChannels in outputShape.
     this.dispatchLayout = flatDispatchLayout(this.outputShape);
     this.dispatch = computeDispatch(
-        this.dispatchLayout, this.outputShape, this.workGroupSize,
-        [this.workPerThread, 1, 1]);
-  }
+        this.dispatchLayout, this.outputShape, this.workGroupSize);
 
-  constructor() {
-    this.shaderKey = 'fromPixels';
-    this.useImport = false;
+    this.useImport = useImport;
+    this.shaderKey = `fromPixels_${this.useImport}`;
   }
 
   makeFromPixelsSource(): string {
@@ -86,36 +74,6 @@ export class FromPixelsProgram implements WebGPUProgram {
     return this.makeFromPixelsSource();
   }
 
-  setPipeline(pipeline: GPUComputePipeline) {
-    this.pipeline = pipeline;
-  }
-
-  setUniform(device: GPUDevice, uniformData: number[]) {
-    // Create the uniform buffer if it does not exist.
-    // The uniform buffer size is fixed so we can hold
-    // and reuse it always.
-    if (!this.uniform) {
-      const uniformBuffer = device.createBuffer({
-        size: uniformData.length *
-            4,  // The uniform buffer contains two 4 bytes element always.
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-      });
-
-      this.uniform = uniformBuffer;
-    }
-
-    // No need to update uniform buffer if no changes.
-    if (!uniformData ||
-        ((uniformData.length === this.lastUniformData.length) &&
-         uniformData.every((v, i) => v === this.lastUniformData[i]))) {
-      return;
-    }
-
-    device.queue.writeBuffer(this.uniform, 0, new Uint32Array(uniformData));
-
-    this.lastUniformData = uniformData;
-  }
-
   makeInputTexture(device: GPUDevice, pixelWidth: number, pixelHeight: number):
       GPUTexture {
     if (!this.inputTexture || this.lastPixelSize.width !== pixelWidth ||
@@ -140,43 +98,10 @@ export class FromPixelsProgram implements WebGPUProgram {
     if (this.disposed) {
       return;
     }
-    if (this.uniform) {
-      this.uniform.destroy();
-    }
     if (this.inputTexture) {
       this.inputTexture.destroy();
     }
     this.disposed = true;
   }
 
-  getLayout(device: GPUDevice): WebGPULayout {
-    if (this.layout === null) {
-      this.layout = this.createTextureLayout(device);
-    }
-    return this.layout;
-  }
-
-  private createTextureLayout(device: GPUDevice): WebGPULayout {
-    const bindGroupLayoutEntries: GPUBindGroupLayoutEntry[] = [];
-    // Output buffer binding layout.
-    bindGroupLayoutEntries.push({
-      binding: 0,
-      visibility: GPUShaderStage.COMPUTE,
-      buffer: {type: 'storage' as const}
-    });
-    // Input buffer binding layout.
-    bindGroupLayoutEntries.push(
-        {binding: 1, visibility: GPUShaderStage.COMPUTE, texture: {}});
-    // Uniform buffer binding layout.
-    bindGroupLayoutEntries.push(
-        {binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: {}});
-    const fromPixelBindGroupLayout =
-        device.createBindGroupLayout({entries: bindGroupLayoutEntries});
-    const fromPixelPipelineLayout = device.createPipelineLayout(
-        {bindGroupLayouts: [fromPixelBindGroupLayout]});
-    return {
-      bindGroupLayout: fromPixelBindGroupLayout,
-      pipelineLayout: fromPixelPipelineLayout
-    };
-  }
 }

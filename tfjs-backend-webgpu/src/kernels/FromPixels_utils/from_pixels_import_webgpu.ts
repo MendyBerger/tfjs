@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2021 Google LLC. All Rights Reserved.
+ * Copyright 2022 Google LLC. All Rights Reserved.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -22,41 +22,11 @@ export class FromPixelsImportProgram extends FromPixelsProgram {
   layout: WebGPULayout = null;
   useImport = true;
 
+  constructor(outputShape: number[], useImport: boolean) {
+    super(outputShape, useImport);
+  }
+
   getUserCode(): string {
     return this.makeFromPixelsSource();
-  }
-
-  getLayout(device: GPUDevice): WebGPULayout {
-    if (this.layout === null) {
-      this.layout = this.createTextureImportLayout(device);
-    }
-    return this.layout;
-  }
-
-  private createTextureImportLayout(device: GPUDevice): WebGPULayout {
-    const bindGroupLayoutEntries: GPUBindGroupLayoutEntry[] = [];
-    // Output buffer binding layout.
-    bindGroupLayoutEntries.push({
-      binding: 0,
-      visibility: GPUShaderStage.COMPUTE,
-      buffer: {type: 'storage' as const}
-    });
-    // Input buffer binding layout.
-    bindGroupLayoutEntries.push({
-      binding: 1,
-      visibility: GPUShaderStage.COMPUTE,
-      externalTexture: {},
-    });
-    // Uniform buffer binding layout.
-    bindGroupLayoutEntries.push(
-        {binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: {}});
-    const fromPixelImportBindGroupLayout =
-        device.createBindGroupLayout({entries: bindGroupLayoutEntries});
-    const fromPixelImportPipelineLayout = device.createPipelineLayout(
-        {bindGroupLayouts: [fromPixelImportBindGroupLayout]});
-    return {
-      bindGroupLayout: fromPixelImportBindGroupLayout,
-      pipelineLayout: fromPixelImportPipelineLayout
-    };
   }
 }
