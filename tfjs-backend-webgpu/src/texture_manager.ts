@@ -92,11 +92,11 @@ export class TextureManager {
     this.numBytesUsed -= byteSize;
   }
 
-  getnumUsedTextures(): number {
+  getNumUsedTextures(): number {
     return this.numUsedTextures;
   }
 
-  getnumFreeTextures(): number {
+  getNumFreeTextures(): number {
     return this.numFreeTextures;
   }
 

@@ -258,6 +258,10 @@ export class WebGPUBackend extends KernelBackend {
     return this.bufferManager;
   }
 
+  getTextureManager(): TextureManager {
+    return this.textureManager;
+  }
+
   acquireBuffer(
       byteSize: number,
       usage: GPUBufferUsageFlags = this.defaultGpuBufferUsage()) {
@@ -831,7 +835,7 @@ export class WebGPUBackend extends KernelBackend {
     return output;
   }
 
-  getFromPixelTextureLayout(useImport: boolean): WebGPULayout {
+  private getFromPixelTextureLayout(useImport: boolean): WebGPULayout {
     if (useImport) {
       if (this.fromPixelImportTextureLayout === null) {
         this.fromPixelImportTextureLayout =
@@ -982,7 +986,12 @@ export class WebGPUBackend extends KernelBackend {
       }
     }
     this.commandQueueOwnedIds.add(output.dataId);
-    this.submitQueue();
+    this.dispatchNumberInEncoder++;
+    if (env().get('WEBGPU_DEFERRED_SUBMIT_BATCH_SIZE') as
+        number <= this.dispatchNumberInEncoder) {
+      this.submitQueue();
+    }
+
     if (shouldTimeProgram) {
       this.activeTimers.push({
         name: program.constructor.name,
