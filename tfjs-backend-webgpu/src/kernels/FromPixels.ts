@@ -78,7 +78,9 @@ export function fromPixels(args: {
 
   if (isVideo || isImage) {
     if (fromPixels2DContext == null) {
-      fromPixels2DContext = document.createElement('canvas').getContext('2d');
+      fromPixels2DContext =
+          document.createElement('canvas').getContext(
+              '2d', {willReadFrequently: true}) as CanvasRenderingContext2D;
     }
     fromPixels2DContext.canvas.width = width;
     fromPixels2DContext.canvas.height = height;
