@@ -15,6 +15,7 @@
  * =============================================================================
  */
 
+import {util} from '@tensorflow/tfjs-core';
 import {getMainHeaderAndGlobalIndexString, WebGPUProgram} from './webgpu_program';
 import {computeDispatch, flatDispatchLayout} from './webgpu_util';
 
@@ -33,8 +34,13 @@ export class FromPixelsProgram implements WebGPUProgram {
   constructor(outputShape: number[], useImport = false) {
     this.outputShape = outputShape;
     this.dispatchLayout = flatDispatchLayout(this.outputShape);
+    this.workPerThread = this.outputShape[this.outputShape.length - 1];
+    util.assert(
+        this.workPerThread > 0,
+        () => `workPerThread of FromPixelsProgram is ${this.workPerThread}`);
     this.dispatch = computeDispatch(
-        this.dispatchLayout, this.outputShape, this.workGroupSize);
+        this.dispatchLayout, this.outputShape, this.workGroupSize,
+        [this.workPerThread, 1, 1]);
 
     this.useImport = useImport;
     this.shaderKey = `fromPixels_${this.useImport}`;
