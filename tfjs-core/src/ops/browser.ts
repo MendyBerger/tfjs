@@ -17,7 +17,7 @@
 
 import {ENGINE} from '../engine';
 import {env} from '../environment';
-import {FromPixels, FromPixelsAttrs, FromPixelsInputs} from '../kernel_names';
+import {FromPixels, FromPixelsAttrs, FromPixelsInputs, ToPixels, ToPixelsInputs, ToPixelsOutput} from '../kernel_names';
 import {getKernel, NamedAttrMap} from '../kernel_registry';
 import {Tensor, Tensor2D, Tensor3D} from '../tensor';
 import {NamedTensorMap} from '../tensor_types';
@@ -326,6 +326,25 @@ export async function toPixels(
     throw new Error(
         `Unsupported type for toPixels: ${$img.dtype}.` +
         ` Please use float32 or int32 tensors.`);
+  }
+
+  // const canvas = document.createElement('canvas');
+  // If the current backend has 'toCanvas' registered, it has a more
+  // efficient way of handling pixel downloads, so we call that.
+  const kernel = getKernel(ToPixels, ENGINE.backendName);
+  if (kernel != null) {
+    const inputs: ToPixelsInputs = {$img};
+    const attrs: ToPixelsOutput = {canvas};
+    const outTensor = ENGINE.runKernel(
+                          ToPixels, inputs as {} as NamedTensorMap,
+                          attrs as {} as NamedAttrMap) as Tensor3D;
+
+    outTensor.dispose();
+    if ($img !== img) {
+      $img.dispose();
+    }
+    return null;
+    // return canvas;
   }
 
   const data = await $img.data();

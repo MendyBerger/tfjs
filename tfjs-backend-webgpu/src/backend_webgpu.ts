@@ -44,6 +44,11 @@ export type TextureInfo = {
   texture: GPUTexture|GPUExternalTexture
 };
 
+export interface WebGPULayout {
+  bindGroupLayout: GPUBindGroupLayout;
+  pipelineLayout: GPUPipelineLayout;
+}
+
 type TensorData = {
   values: backend_util.BackendValues,
   dtype: DataType,
@@ -130,6 +135,7 @@ export class WebGPUBackend extends KernelBackend {
   private supportTimeQuery: boolean;
   private uniformPendingDisposal: BufferInfo[] = [];
   private uploadWaitMs = 0;
+  // private renderPipeline: GPURenderPipeline;
 
   private nextDataId(): number {
     return WebGPUBackend.nextDataId++;
@@ -690,12 +696,168 @@ export class WebGPUBackend extends KernelBackend {
     return {offset: 0, size: currentOffset, buffer: uniformBuffer};
   }
 
+  getAndSavePipeline(key: string, getPipeline: () => GPUComputePipeline) {
+    if (!(key in this.pipelineCache)) {
+      this.pipelineCache[key] = getPipeline();
+    }
+    return this.pipelineCache[key];
+  }
+
+  runToPixelsProgram(
+      program: webgpu_program.WebGPUProgram, inputs: TensorInfo[],
+      outputDtype: DataType, programDefinedUniform?: ProgramUniform,
+      output?: TensorInfo, ctx?: GPUCanvasContext): TensorInfo {
+    if (!output) {
+      output = this.makeTensorInfo(program.outputShape, 'int32');
+    }
+    if (program.isToPixels) {
+      ctx.configure({
+        device: this.device,
+        format: 'rgba8unorm',
+        usage: GPUTextureUsage.STORAGE_BINDING,
+      });
+
+      let textureInfo: TextureInfo;
+      const width = output.shape[1];
+      const height = output.shape[0];
+      textureInfo = {
+        width,
+        height,
+        format: null,
+        usage: null,
+        texture: ctx.getCurrentTexture()
+      };
+      const info = this.tensorMap.get(output.dataId);
+      info.resourceInfo = textureInfo;
+    }
+    if (util.sizeFromShape(output.shape) === 0) {
+      // Short-circuit the computation since the result is empty (has 0 in its
+      // shape).
+      this.tensorMap.get(output.dataId).values =
+          util.getTypedArrayFromDType(output.dtype as 'float32', 0);
+      return output;
+    }
+    this.uploadToGPU(output.dataId);
+
+    program.dispatch = reshapeDispatch(this.device, program);
+
+    // There are five kinds of uniforms: NAN, shapes, shape strides, program
+    // size, program defined uniforms.
+    let programUniform: ProgramUniform = [];
+    let bufferShapes: number[][] = [];
+    if (!program.isFromPixels && !program.isToPixels) {
+      programUniform.push({type: 'float32', data: [NaN]});
+      bufferShapes = inputs.concat(output).map(d => d.shape);
+      const uniformsType = 'int32';
+      bufferShapes.map(d => {
+        programUniform.push({type: uniformsType, data: d});
+      });
+      const strides = util.computeStrides(output.shape);
+      programUniform.push({type: uniformsType, data: strides});
+      if (program.size) {
+        const size = util.sizeFromShape(program.outputShape);
+        programUniform.push(
+            {type: uniformsType, data: [program.isVec4 ? size / 4 : size]});
+      }
+    }
+
+    const inputsData = inputs.map((input: TensorInfo, i: number) => {
+      if (input.dtype === 'complex64') {
+        throw new Error(
+            `GPGPUProgram does not support complex64 input. For complex64 ` +
+            `dtypes, please separate the program into real and imaginary ` +
+            `parts.`);
+      }
+      this.uploadToGPU(input.dataId);
+
+      return {
+        // Returning dtype from tensorMap because it reflects dtype
+        // of underlying buffer, rather than abstract dtype.
+        dtype: this.tensorMap.get(input.dataId).dtype,
+        shape: input.shape,
+        name: program.variableNames[i]
+      };
+    });
+
+    const key =
+        webgpu_program.makeShaderKey(program, bufferShapes, inputsData, output);
+
+    let pipeline;
+    if (key in this.pipelineCache) {
+      pipeline = this.pipelineCache[key];
+    } else {
+      pipeline = webgpu_program.compileProgram(
+          this.device, program, inputsData, output);
+      this.pipelineCache[key] = pipeline;
+    }
+
+    if (programDefinedUniform) {
+      programUniform = [...programUniform, ...programDefinedUniform];
+    }
+    const bindings = [
+      this.tensorToBinding(output), ...inputs.map(t => this.tensorToBinding(t)),
+      this.makeUniforms(programUniform)
+    ];
+
+    const bindGroup = this.device.createBindGroup({
+      layout: pipeline.getBindGroupLayout(0),
+      entries: bindings.map((b, i) => ({binding: i, resource: b})),
+    });
+
+    this.ensureCommandEncoderReady();
+    const passEncoder = this.getComputePass();
+    const shouldTimeProgram = this.activeTimers != null;
+    if (shouldTimeProgram) {
+      if (this.supportTimeQuery) {
+        (passEncoder as any).writeTimestamp(this.querySet, 0);
+      }
+    }
+    passEncoder.setPipeline(pipeline);
+    passEncoder.setBindGroup(0, bindGroup);
+    passEncoder.dispatch(
+        program.dispatch[0], program.dispatch[1], program.dispatch[2]);
+    if (shouldTimeProgram) {
+      if (this.supportTimeQuery) {
+        (passEncoder as any).writeTimestamp(this.querySet, 1);
+      }
+    }
+    this.ensureComputePassEnded();
+    this.submitQueue();
+    if (shouldTimeProgram) {
+      this.activeTimers.push({
+        name: program.constructor.name,
+        query: this.getQueryTime(this.querySet)
+      });
+    }
+    return output;
+  }
+
   public runWebGPUProgram(
       program: webgpu_program.WebGPUProgram, inputs: TensorInfo[],
       outputDtype: DataType, programDefinedUniform?: ProgramUniform,
-      output?: TensorInfo): TensorInfo {
+      output?: TensorInfo, ctx?: GPUCanvasContext): TensorInfo {
     if (!output) {
       output = this.makeTensorInfo(program.outputShape, outputDtype);
+    }
+    if (program.isToPixels) {
+      ctx.configure({
+        device: this.device,
+        format: 'rgba8unorm',
+        usage: GPUTextureUsage.STORAGE_BINDING,
+      });
+
+      let textureInfo: TextureInfo;
+      const width = output.shape[1];
+      const height = output.shape[0];
+      textureInfo = {
+        width,
+        height,
+        format: null,
+        usage: null,
+        texture: ctx.getCurrentTexture()
+      };
+      const info = this.tensorMap.get(output.dataId);
+      info.resourceInfo = textureInfo;
     }
     if (util.sizeFromShape(output.shape) === 0) {
       // Short-circuit the computation since the result is empty (has 0 in its
@@ -711,7 +873,7 @@ export class WebGPUBackend extends KernelBackend {
     // size, program defined uniforms.
     let programUniform: ProgramUniform = [];
     let bufferShapes: number[][] = [];
-    if (!program.isFromPixels) {
+    if (!program.isFromPixels && !program.isToPixels) {
       programUniform.push({type: 'float32', data: [NaN]});
       bufferShapes = inputs.concat(output).map(d => d.shape);
       const uniformsType = 'int32';
