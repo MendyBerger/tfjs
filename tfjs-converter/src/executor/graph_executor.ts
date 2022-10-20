@@ -53,10 +53,10 @@ export class GraphExecutor implements FunctionExecutor {
   private _functionExecutorMap: {[key: string]: FunctionExecutor} = {};
   private _resourceManager: ResourceManager;
   private intermediateTensors: NamedTensorsMap = {};
-  private keepIdsForExecuteAsync: Set<number>;
+  private idsKeepForExecuteAsync: Set<number>;
   private tensorsMap: NamedTensorsMap;
-  private keepInputTensorsForExecute: Tensor[];
-  private keepTensorsForExecute: Tensor[];
+  private inputTensorsKeepForExecute: Tensor[];
+  private tensorsKeepForExecute: Tensor[];
   private dumpMode = DumpMode.Default;
 
   get weightIds(): number[] {
@@ -191,13 +191,13 @@ export class GraphExecutor implements FunctionExecutor {
         this.graph, this.weightMap, executionInfo);
   }
 
-  private keepTensors(keepTensors: Tensor[], tensors: Tensor[]) {
-    if (this.dumpMode !== DumpMode.Sync || tensors == null) {
+  private keepTensors(tensorsDest: Tensor[], tensorsSrc: Tensor[]) {
+    if (this.dumpMode !== DumpMode.Sync || tensorsSrc == null) {
       return;
     }
-    tensors.forEach(tensor => {
+    tensorsSrc.forEach(tensor => {
       if (tensor && !tensor.kept) {
-        keepTensors.push(tensor);
+        tensorsDest.push(tensor);
         keep(tensor);
       }
     });
@@ -254,8 +254,8 @@ export class GraphExecutor implements FunctionExecutor {
           this.weightMap, tensorArrayMap, tensorListMap,
           this.functionExecutorMap);
       if (this.dumpMode === DumpMode.Sync) {
-        this.keepTensorsForExecute = [];
-        this.keepInputTensorsForExecute = [];
+        this.tensorsKeepForExecute = [];
+        this.inputTensorsKeepForExecute = [];
       }
 
       Object.keys(inputs).forEach(name => {
@@ -264,7 +264,7 @@ export class GraphExecutor implements FunctionExecutor {
         tensors[index] = inputs[name];
         tensorsMap[nodeName] = tensors;
         // Input tensors should be disposed by user.
-        this.keepTensors(this.keepInputTensorsForExecute, tensors);
+        this.keepTensors(this.inputTensorsKeepForExecute, tensors);
       });
 
       const tensorsToKeep = this.getFrozenTensorIds(tensorsMap);
@@ -281,7 +281,7 @@ export class GraphExecutor implements FunctionExecutor {
                 `Please use model.executeAsync() instead.`);
           }
           tensorsMap[node.name] = tensors;
-          this.keepTensors(this.keepTensorsForExecute, tensors);
+          this.keepTensors(this.tensorsKeepForExecute, tensors);
           this.checkTensorForDisposal(
               node.name, node, tensorsMap, context, tensorsToKeep,
               outputNodeNames, intermediateTensorConsumerCount);
@@ -385,11 +385,11 @@ export class GraphExecutor implements FunctionExecutor {
     }
     this.intermediateTensors = {};
     if (this.dumpMode === DumpMode.Sync) {
-      if (this.keepTensorsForExecute) {
-        this.keepTensorsForExecute.forEach(tensor => {
+      if (this.tensorsKeepForExecute) {
+        this.tensorsKeepForExecute.forEach(tensor => {
           tensor.dispose();
         });
-        this.keepTensorsForExecute = null;
+        this.tensorsKeepForExecute = null;
       }
     } else if (this.dumpMode === DumpMode.Async) {
       this.disposeTensorsMap();
@@ -406,7 +406,7 @@ export class GraphExecutor implements FunctionExecutor {
       const tensorArray = this.tensorsMap[key];
       tensorArray.forEach(tensor => {
         if (tensor && !tensor.kept && !tensor.isDisposed &&
-            !this.keepIdsForExecuteAsync.has(tensor.id)) {
+            !this.idsKeepForExecuteAsync.has(tensor.id)) {
           tensor.dispose();
         }
       });
@@ -468,7 +468,7 @@ export class GraphExecutor implements FunctionExecutor {
     // dispose all the intermediate tensors
     const outputIds = results.map(t => t.id);
     const inputIds = Object.keys(inputs).map(name => inputs[name].id);
-    this.keepIdsForExecuteAsync =
+    this.idsKeepForExecuteAsync =
         new Set<number>([...outputIds, ...inputIds, ...this.weightIds]);
     if (this.dumpMode !== DumpMode.Async) {
       this.disposeTensorsMap();
@@ -476,7 +476,7 @@ export class GraphExecutor implements FunctionExecutor {
 
     // dispose the context for the root executor
     if (this.parent == null) {
-      context.dispose(this.keepIdsForExecuteAsync);
+      context.dispose(this.idsKeepForExecuteAsync);
     }
 
     return results;
