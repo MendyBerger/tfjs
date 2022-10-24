@@ -219,10 +219,38 @@ async function dump(
       break;
     }
   }
+  await createNameOpMap(Object.keys(dumpActualObject), modelJson);
   const dumpData =
       {[backends[0]]: dumpActualObject, [backends[1]]: dumpExpectedObject};
   await saveObjectsToFile(dumpData, prefix);
   if (dumpCount) {
     console.log(`Total dumped ${dumpCount} item(s).`);
   }
+}
+
+async function saveObjectsToFile2(jsonObjects, fileName) {
+  const object = jsonObjects;
+  // const fileName = `${newPrefix}${backends[i]}.json`;
+  const a = document.createElement('a');
+  const file = new Blob([JSON.stringify(object)], {type: 'application/json'});
+  a.href = URL.createObjectURL(file);
+  a.download = fileName;
+  a.click();
+  // This log informs tools file has been saved.
+  console.log(fileName);
+}
+
+async function createNameOpMap(outputNodeNames, modelJson) {
+  const modelNodes = modelJson['modelTopology']['node'];
+  let nameOpMap = {};
+  for (let i = 0; i < modelNodes.length; i++) {
+    for (let j = 0; j < outputNodeNames.length; j++) {
+      const outputNodeName = outputNodeNames[j];
+      if (outputNodeName === modelNodes[i].name) {
+        console.log(modelNodes[i]);
+        nameOpMap[outputNodeName] = modelNodes[i].op;
+      }
+    }
+  }
+  await saveObjectsToFile2(nameOpMap, 'nameOpMap.json');
 }
