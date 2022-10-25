@@ -18,15 +18,20 @@
 /**
  * DUMP_LEVEL.BIGDIFF: dumping when difference is greater than the default
  * epsilon. DUMP_LEVEL.ANYDIFF: dumping when difference is greater than 0.
+ * DUMP_LEVEL.ALL: dump all tensors.
  */
 const DUMP_LEVEL = {
   BIGDIFF: 0,
   ANYDIFF: 1,
+  ALL: 2,
 };
 
 function compareData(data1, data2, level = DUMP_LEVEL.BIGDIFF) {
   let epsilon = level == DUMP_LEVEL.ANYDIFF ? 0 : -1;
   let match = true;
+  if (level == DUMP_LEVEL.ALL) {
+    return false;
+  }
   try {
     expectObjectsClose(data1, data2, epsilon);
   } catch (e) {
@@ -201,18 +206,41 @@ async function dump(
     if (compareData(actualObject[key], expectedObject[key], level)) {
       continue;
     }
-    const predictOpObject = await predictOp(
-        graphModel, modelJson, expectedObject, key, backends[0]);
-    const [actualOpObject, expectedOpObject] = predictOpObject ?
-        [{...predictOpObject, i}, {...expectedObject[key], i}] :
-        [null, null];
-    if (compareData(actualOpObject, expectedOpObject, level)) {
-      continue;
-    }
-    if (actualOpObject && expectedOpObject) {
-      dumpActualObject[key] = actualOpObject;
-      dumpExpectedObject[key] = expectedOpObject;
+
+    if (level == 2) {
+      // Dump all tensors.
+      if (actualObject[key]['index']) {
+        dumpActualObject[`${key}`] = actualObject[key];
+        dumpExpectedObject[`${key}`] = expectedObject[key];
+      } else {
+        dumpActualObject[`${key}`] = {
+          ...actualObject[key],
+          ...{
+            index: i
+          }
+        };
+        dumpExpectedObject[`${key}`] = {
+          ...expectedObject[key],
+          ...{
+            index: i
+          }
+        };
+      }
       dumpCount++;
+    } else {
+      const predictOpObject = await predictOp(
+          graphModel, modelJson, expectedObject, key, backends[0]);
+      const [actualOpObject, expectedOpObject] = predictOpObject ?
+          [{...predictOpObject, i}, {...expectedObject[key], i}] :
+          [null, null];
+      if (compareData(actualOpObject, expectedOpObject, level)) {
+        continue;
+      }
+      if (actualOpObject && expectedOpObject) {
+        dumpActualObject[key] = actualOpObject;
+        dumpExpectedObject[key] = expectedOpObject;
+        dumpCount++;
+      }
     }
     // Break when diff count equals dumpLength to avoid downloading large file.
     if (length != -1 && dumpCount == length) {
