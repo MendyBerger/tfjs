@@ -34,8 +34,11 @@ const BACKEND_FLAGS_MAP = {
   tflite: [],
 };
 if (tf.engine().backendNames().includes('webgpu')) {
-  BACKEND_FLAGS_MAP['webgpu'] =
-      ['WEBGPU_DEFERRED_SUBMIT_BATCH_SIZE', 'KEEP_INTERMEDIATE_TENSORS'];
+  BACKEND_FLAGS_MAP['webgpu'] = [
+    'WEBGPU_DEFERRED_SUBMIT_BATCH_SIZE',
+    'KEEP_INTERMEDIATE_TENSORS',
+    'WEBGPU_PARALLEL_COMPILATION_PASS',
+  ];
 }
 
 const TUNABLE_FLAG_NAME_MAP = {
@@ -52,6 +55,7 @@ const TUNABLE_FLAG_NAME_MAP = {
   WEBGL_USE_SHAPES_UNIFORMS: 'Use shapes uniforms',
   CHECK_COMPUTATION_FOR_ERRORS: 'Check each op result',
   KEEP_INTERMEDIATE_TENSORS: 'Print intermediate tensors',
+  WEBGPU_PARALLEL_COMPILATION_PASS: 'Use parallel compilation',
 };
 if (tf.engine().backendNames().includes('webgpu')) {
   TUNABLE_FLAG_NAME_MAP['WEBGPU_DEFERRED_SUBMIT_BATCH_SIZE'] =
@@ -213,7 +217,8 @@ async function initDefaultValueMap() {
 function getTunableRange(flag) {
   const defaultValue = TUNABLE_FLAG_DEFAULT_VALUE_MAP[flag];
   if (flag === 'WEBGL_FORCE_F16_TEXTURES' ||
-      flag === 'WEBGL_PACK_DEPTHWISECONV' || 'KEEP_INTERMEDIATE_TENSORS') {
+      flag === 'WEBGL_PACK_DEPTHWISECONV' || 'KEEP_INTERMEDIATE_TENSORS' ||
+      'WEBGPU_PARALLEL_COMPILATION_PASS') {
     return [false, true];
   } else if (flag === 'WEBGL_VERSION') {
     const tunableRange = [];
