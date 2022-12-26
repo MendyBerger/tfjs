@@ -28,8 +28,8 @@ const BACKEND_FLAGS_MAP = {
     'WEBGL_VERSION', 'WEBGL_CPU_FORWARD', 'WEBGL_PACK',
     'WEBGL_FORCE_F16_TEXTURES', 'WEBGL_RENDER_FLOAT32_CAPABLE',
     'WEBGL_FLUSH_THRESHOLD', 'WEBGL_PACK_DEPTHWISECONV',
-    'CHECK_COMPUTATION_FOR_ERRORS', 'WEBGL_USE_SHAPES_UNIFORMS',
-    'KEEP_INTERMEDIATE_TENSORS'
+    'CHECK_COMPUTATION_FOR_ERRORS', 'ENGINE_COMPILE_ONLY',
+    'WEBGL_USE_SHAPES_UNIFORMS', 'KEEP_INTERMEDIATE_TENSORS'
   ],
   tflite: [],
 };
@@ -51,6 +51,7 @@ const TUNABLE_FLAG_NAME_MAP = {
   WEBGL_PACK_DEPTHWISECONV: 'Packed depthwise Conv2d',
   WEBGL_USE_SHAPES_UNIFORMS: 'Use shapes uniforms',
   CHECK_COMPUTATION_FOR_ERRORS: 'Check each op result',
+  ENGINE_COMPILE_ONLY: 'GL compile only',
   KEEP_INTERMEDIATE_TENSORS: 'Print intermediate tensors',
 };
 if (tf.engine().backendNames().includes('webgpu')) {
@@ -213,7 +214,8 @@ async function initDefaultValueMap() {
 function getTunableRange(flag) {
   const defaultValue = TUNABLE_FLAG_DEFAULT_VALUE_MAP[flag];
   if (flag === 'WEBGL_FORCE_F16_TEXTURES' ||
-      flag === 'WEBGL_PACK_DEPTHWISECONV' || 'KEEP_INTERMEDIATE_TENSORS') {
+      flag === 'WEBGL_PACK_DEPTHWISECONV' || 'ENGINE_COMPILE_ONLY' ||
+      'KEEP_INTERMEDIATE_TENSORS') {
     return [false, true];
   } else if (flag === 'WEBGL_VERSION') {
     const tunableRange = [];
