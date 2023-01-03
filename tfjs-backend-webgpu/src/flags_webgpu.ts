@@ -83,7 +83,5 @@ ENV.registerFlag('WEBGPU_THRESHOLD_TO_INCREASE_WORKGROUPS_FOR_MATMUL', () => 0);
  */
 ENV.registerFlag('WEBGPU_CONV_SEPARATE_IM2COL_SHADER', () => false);
 
-/**
- * Whether to use parallel shader compilation.
- */
-ENV.registerFlag('WEBGPU_PARALLEL_COMPILATION_PASS', () => true);
+/** Experimental flag, whether enter compile only phase. */
+ENV.registerFlag('ENGINE_COMPILE_ONLY', () => false);

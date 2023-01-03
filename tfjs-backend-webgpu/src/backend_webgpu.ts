@@ -363,8 +363,7 @@ export class WebGPUBackend extends KernelBackend {
   }
 
   async parallelCompile() {
-    if (env().getBool('WEBGPU_PARALLEL_COMPILATION_PASS') &&
-        !this.activeTimers) {
+    if (env().getBool('ENGINE_COMPILE_ONLY') && !this.activeTimers) {
       const asyncProgramInfos = this.asyncProgramInfos;
       this.asyncProgramInfos = [];
       const pipelinesPromise =
@@ -870,7 +869,7 @@ export class WebGPUBackend extends KernelBackend {
 
     // Currently only support parallel compilation for non-profiling mode.
     const parallelCompilation =
-        env().getBool('WEBGPU_PARALLEL_COMPILATION_PASS') && !shouldTimeProgram;
+        env().getBool('ENGINE_COMPILE_ONLY') && !shouldTimeProgram;
     if (parallelCompilation) {
       program.pipeline = this.getAndSaveAsyncPipeline(program.shaderKey, () => {
         return webgpu_program.compileProgramAsync(
@@ -910,8 +909,8 @@ export class WebGPUBackend extends KernelBackend {
       shouldTimeProgram: boolean) {
     if (this.asyncProgramInfos.length > 0) {
       throw new Error(`Please make sure that await tensor.data() is called when
-           WEBGPU_PARALLEL_COMPILATION_PASS is on so that the parallel
-           compilation pass is really completed.`);
+          ENGINE_COMPILE_ONLY is on so that the parallel compilation pass is
+          really completed.`);
     }
     program.bindGroup = this.device.createBindGroup({
       layout: (program.pipeline as GPUComputePipeline).getBindGroupLayout(0),
