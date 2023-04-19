@@ -54,13 +54,11 @@ export interface WebGPUProgram {
 }
 
 export const compileProgram =
-    (device: GPUDevice, program: WebGPUProgram, inputsData: InputInfo[],
-     output: TensorInfo, parallelCompilation: boolean): GPUComputePipeline|
+    (device: GPUDevice, program: WebGPUProgram, shader: string,
+     parallelCompilation: boolean): GPUComputePipeline|
     Promise<GPUComputePipeline> => {
-      const outputData = {dtype: output.dtype, shape: output.shape};
-      const source = makeShader(inputsData, outputData, program);
       const module = device.createShaderModule(
-          {code: source, label: program.constructor.name});
+          {code: shader, label: program.constructor.name});
 
       let printShaderString = env().get('WEBGPU_PRINT_SHADER') as string;
       if (printShaderString !== '') {
@@ -70,7 +68,7 @@ export const compileProgram =
             printShaderArray.some(
                 item => program.shaderKey.toLowerCase().includes(item))) {
           console.group(program.shaderKey);
-          console.debug(source);
+          console.debug(shader);
           console.groupEnd();
         }
       }
@@ -190,8 +188,8 @@ export function getWorkgroupSizeString(program: WebGPUProgram): string {
 `;
 }
 
-function makeShader(
-    inputInfo: InputInfo[], outputData: {dtype: DataType, shape: number[]},
+export function makeShader(
+    inputInfo: InputInfo[], outputInfo: TensorInfo,
     program: WebGPUProgram): string {
   const prefixSnippets: string[] = [];
   const flatWorkgroupSize = program.workgroupSize[0] *
@@ -228,14 +226,14 @@ function makeShader(
         };
 
         @group(0) @binding(0) var<storage, read_write> result: array<${
-        dataTypeToGPUType(outputData.dtype, program.outputComponent)}>;
+        dataTypeToGPUType(outputInfo.dtype, program.outputComponent)}>;
         @group(0) @binding(2) var<uniform> uniforms: Uniform;
       `);
     const useGlobalIndex = isFlatDispatchLayout(program);
     return [
       commonSnippet,
       prefixSnippets.join('\n'),
-      getCoordsFromIndexSnippet(outputData.shape),
+      getCoordsFromIndexSnippet(outputInfo.shape),
       program.getUserCode(),
       getStartHeaderString(useGlobalIndex, program),
     ].join('\n');
@@ -254,9 +252,9 @@ function makeShader(
         `${x.charAt(0).toLowerCase() + x.slice(1)}ShapeStrides: ${
             stridesDataType}, `;
   });
-  const outputDataType = getCoordsDataType(outputData.shape.length);
-  uniformDeclaration += `outShape : ${outputDataType}, `;
-  stridesLength = outputData.shape.length - 1;
+  const outputInfoType = getCoordsDataType(outputInfo.shape.length);
+  uniformDeclaration += `outShape : ${outputInfoType}, `;
+  stridesLength = outputInfo.shape.length - 1;
   stridesDataType = getCoordsDataType(stridesLength);
   uniformDeclaration += `
          outShapeStrides: ${stridesDataType}, `;
@@ -281,7 +279,7 @@ function makeShader(
   } else {
     prefixSnippets.push(`
       @group(0) @binding(0) var<storage, read_write> result: array<${
-        dataTypeToGPUType(outputData.dtype, program.outputComponent)}>;
+        dataTypeToGPUType(outputInfo.dtype, program.outputComponent)}>;
     `);
   }
   program.variableNames.forEach((x, i) => {
@@ -302,16 +300,16 @@ function makeShader(
   }
 
   const coordsSnippet =
-      getOutputCoordsSnippet(outputData.shape, program.dispatchLayout);
+      getOutputCoordsSnippet(outputInfo.shape, program.dispatchLayout);
 
   const sources = [
     commonSnippet, prefixSnippets.join('\n') + isInfSnippet,
-    getCoordsFromIndexSnippet(outputData.shape), coordsSnippet,
-    getOutputIndexFromCoordsSnippet(outputData.shape.length)
+    getCoordsFromIndexSnippet(outputInfo.shape), coordsSnippet,
+    getOutputIndexFromCoordsSnippet(outputInfo.shape.length)
   ];
   if (!program.atomic) {
     sources.push(setOutputSnippet(
-        outputData.shape, outputData.dtype, program.outputComponent));
+        outputInfo.shape, outputInfo.dtype, program.outputComponent));
   }
 
   program.variableNames.forEach((x, i) => {
@@ -322,10 +320,10 @@ function makeShader(
       inputInfo
           .map(
               (x, i) => getInputSnippet(
-                  x, outputData.shape,
+                  x, outputInfo.shape,
                   program.variableComponents ? program.variableComponents[i] :
                                                program.outputComponent,
-                  program.dispatchLayout.x.length === outputData.shape.length))
+                  program.dispatchLayout.x.length === outputInfo.shape.length))
           .join('\n');
   sources.push(inputSnippet);
   sources.push(program.getUserCode());
@@ -336,7 +334,7 @@ function makeShader(
 }
 
 export function makeShaderKey<R extends Rank>(
-    program: WebGPUProgram, inputsData: InputInfo[],
+    program: WebGPUProgram, inputsInfo: InputInfo[],
     output: TensorInfo): string {
   let key = program.shaderKey;
   if (program.isFromPixels) {
@@ -345,7 +343,7 @@ export function makeShaderKey<R extends Rank>(
 
   const shapes: number[][] = [];
   const types: Array<keyof DataTypeMap> = [];
-  inputsData.forEach(element => {
+  inputsInfo.forEach(element => {
     shapes.push(element.shape);
     types.push(element.dtype);
   });
@@ -353,9 +351,9 @@ export function makeShaderKey<R extends Rank>(
   types.push(output.dtype);
 
   const broadcastDims =
-      inputsData.map(d => backend_util.getBroadcastDims(d.shape, output.shape));
+      inputsInfo.map(d => backend_util.getBroadcastDims(d.shape, output.shape));
   const inputShapesEqualsOutShape =
-      inputsData.map(d => util.arraysEqual(d.shape, output.shape)).join('_');
+      inputsInfo.map(d => util.arraysEqual(d.shape, output.shape)).join('_');
   const broadcastDimsKey = broadcastDims.map(d => d.join('_')).join(';');
 
   const flatDispatchString = isFlatDispatch(program) ? 'flatDispatch' : '';
