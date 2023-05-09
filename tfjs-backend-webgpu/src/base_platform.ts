@@ -16,23 +16,13 @@
  */
 
 import './flags_webgpu';
-import {device_util} from '@tensorflow/tfjs-core';
-// @ts-ignore
-import nodeGPUBinding from 'bindings';
 
-let nodeGPU: GPU = null;
-function getNodeGPU() {
-  if (nodeGPU) {
-    return nodeGPU;
-  }
-  const gpuProviderModule = nodeGPUBinding('dawn');
-  const gpuProviderFlags = ['disable-dawn-features=disallow_unsafe_apis'];
-  nodeGPU = gpuProviderModule.create(gpuProviderFlags);
-  return nodeGPU;
-}
+// @ts-ignore
+import nodeWebGPU from '@axinging/webgpu';
+import {device_util} from '@tensorflow/tfjs-core';
 
 export async function requestAdapter(gpuDescriptor: GPURequestAdapterOptions):
     Promise<GPUAdapter> {
   return device_util.isBrowser() ? navigator.gpu.requestAdapter(gpuDescriptor) :
-                                   getNodeGPU().requestAdapter(gpuDescriptor);
+                                   nodeWebGPU().requestAdapter(gpuDescriptor);
 }
