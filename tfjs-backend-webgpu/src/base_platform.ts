@@ -23,6 +23,7 @@ import {device_util} from '@tensorflow/tfjs-core';
 
 export async function requestAdapter(gpuDescriptor: GPURequestAdapterOptions):
     Promise<GPUAdapter> {
-  return device_util.isBrowser() ? navigator.gpu.requestAdapter(gpuDescriptor) :
-                                   nodeWebGPU().requestAdapter(gpuDescriptor);
+  return device_util.isBrowser() ?
+      navigator.gpu.requestAdapter(gpuDescriptor) :
+      nodeWebGPU.getNodeGPU().requestAdapter(gpuDescriptor);
 }

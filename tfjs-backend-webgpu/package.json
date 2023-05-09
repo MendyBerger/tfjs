@@ -40,7 +40,7 @@
     "karma-typescript-es6-transform": "^5.0.2"
   },
   "dependencies": {
-    "@axinging/webgpu": "^0.0.6",
+    "@axinging/webgpu": "^0.0.7",
     "@tensorflow/tfjs-backend-cpu": "link:../link-package/node_modules/@tensorflow/tfjs-backend-cpu",
     "@types/bindings": "^1.5.1",
     "bindings": "^1.5.0"
