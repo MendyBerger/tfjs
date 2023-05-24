@@ -36,22 +36,25 @@ export function draw(
   const format = 'rgba8unorm';
   const outShape = [height, width];
   const useAlpha = alpha !== 1;
-  const program = new ToPixelsProgram(outShape, image.dtype, format, useAlpha);
+  const program = new ToPixelsProgram(outShape, image.dtype, format);
   canvas.width = width;
   canvas.height = height;
-  const gpuContext = canvas.getContext('webgpu');
+  let gpuContext = canvas.getContext('webgpu');
+  let canvasWebGPU;
   if (!gpuContext) {
-    throw new Error(
-        `Please make sure this canvas has only been used for webgpu context!`);
+    canvasWebGPU = document.createElement('canvas');
+    gpuContext = canvasWebGPU.getContext('webgpu');
   }
   const numChannels = image.shape.length === 3 ? image.shape[2] : 1;
-  const alphaMode = numChannels === 4 ? 'premultiplied' : 'opaque';
   //  'rgba8unorm' is not supported yet as the context format
   //  (https://bugs.chromium.org/p/chromium/issues/detail?id=1241369).
   //  If supported, we can use single compute pass to transfer the input tensor
   //  data to webgpu context canvas.
-  gpuContext.configure(
-      {device: backend.device, format: 'bgra8unorm', alphaMode});
+  gpuContext.configure({
+    device: backend.device,
+    format: 'bgra8unorm',
+    alphaMode: 'premultiplied'
+  });
 
   // ToPixelsProgram first writes into a texture, then this texture will be
   // drawn into GPUCanvasContext.
@@ -66,7 +69,16 @@ export function draw(
 
   const drawTextureProgram = new DrawTextureGraphicsProgram(useAlpha);
   backend.runWebGPUGraphicsProgram(drawTextureProgram, gpuContext, output);
-  return output;
+  if (canvasWebGPU) {
+    const canvas2dContext = canvas.getContext('2d');
+    if (!canvas2dContext) {
+      throw new Error(
+          `Please make sure this canvas has only been used for 2d or webgpu context!`);
+    }
+    canvas2dContext.drawImage(canvasWebGPU, 0, 0);
+  }
+  backend.disposeData(output.dataId);
+  return image;
 }
 
 export const drawConfig: KernelConfig = {

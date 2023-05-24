@@ -863,7 +863,7 @@ export class WebGPUBackend extends KernelBackend {
   public runWebGPUGraphicsProgram(
       program: webgpu_graphics_program.WebGPUGraphicsProgram,
       gpuContext: GPUCanvasContext, inputTensorInfo: TensorInfo) {
-    this.ensureComputePassEnded();
+    this.endComputePassEncoder();
     if (!(program.shaderKey in this.graphicsPipelineCache)) {
       this.graphicsPipelineCache[program.shaderKey] =
           webgpu_graphics_program.compileGraphicsProgram(this.device, program);
@@ -891,28 +891,13 @@ export class WebGPUBackend extends KernelBackend {
       ],
     };
 
-    const pass =
-        this.currentCommandEncoder.beginRenderPass(renderPassDescriptor);
-    const shouldTimeProgram = this.activeTimers != null;
-    if (shouldTimeProgram && this.supportTimeQuery) {
-      // tslint:disable-next-line:no-any
-      (pass as any).writeTimestamp(this.querySet, 0);
-    }
+    const pass = this.commandEncoder.beginRenderPass(renderPassDescriptor);
     pass.setPipeline(graphicsPipeline);
     pass.setBindGroup(0, bindGroup);
     pass.draw(6);
     pass.end();
-    if (shouldTimeProgram && this.supportTimeQuery) {
-      // tslint:disable-next-line:no-any
-      (pass as any).writeTimestamp(this.querySet, 1);
-    }
     this.submitQueue();
-    if (shouldTimeProgram) {
-      this.activeTimers.push({
-        name: program.constructor.name,
-        query: this.getQueryTime(this.querySet)
-      });
-    }
+    // TODO: Support timestamp here.
   }
 
   public runWebGPUProgram(

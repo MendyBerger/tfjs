@@ -425,12 +425,9 @@ export function draw(
 
   const inputs: DrawInputs = {image: $img};
   const attrs: DrawAttrs = {canvas, options};
-  const result = ENGINE.runKernel(
+  ENGINE.runKernel(
       Draw, inputs as unknown as NamedTensorMap,
       attrs as unknown as NamedAttrMap);
-  if ($img !== result) {
-    (result as Tensor).dispose();
-  }
 }
 
 export const fromPixels = /* @__PURE__ */ op({fromPixels_});
