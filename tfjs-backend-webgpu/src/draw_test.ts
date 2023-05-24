@@ -81,7 +81,7 @@ describeWebGPU('draw on webgpu context', (env) => {
     expect(tf.memory().numTensors).toEqual(startNumTensors);
     expectArraysClose(
         await readPixelsFromGPUCanvas(
-            canvas, width, height, unmultiplyAlpha, 'int32'),
+            canvas, height, width, unmultiplyAlpha, 'int32'),
         data, 0.1);
   });
 
@@ -98,7 +98,7 @@ describeWebGPU('draw on webgpu context', (env) => {
         // tslint:disable-next-line:no-any
         img, canvas as any, {contextOptions: {contextType: env.name}});
     const actualData =
-        await readPixelsFromGPUCanvas(canvas, width, height, unmultiplyAlpha);
+        await readPixelsFromGPUCanvas(canvas, height, width, unmultiplyAlpha);
     expectArraysClose(actualData, data, 0.01);
   });
 
@@ -113,7 +113,7 @@ describeWebGPU('draw on webgpu context', (env) => {
         // tslint:disable-next-line:no-any
         img, canvas as any, {contextOptions: {contextType: env.name}});
     expectArraysEqual(
-        await readPixelsFromGPUCanvas(canvas, width, height, removeLastChannel),
+        await readPixelsFromGPUCanvas(canvas, height, width, removeLastChannel),
         data);
   });
 
@@ -128,7 +128,7 @@ describeWebGPU('draw on webgpu context', (env) => {
         // tslint:disable-next-line:no-any
         img, canvas as any, {contextOptions: {contextType: env.name}});
     const actualData =
-        await readPixelsFromGPUCanvas(canvas, width, height, removeLastChannel);
+        await readPixelsFromGPUCanvas(canvas, height, width, removeLastChannel);
     const expectedData = [25, 51, 76, 102, 128, 153, 178, 204, 229, 25, 28, 31];
     // On macOs/M2, some difference is close to 1.
     expectArraysClose(actualData, expectedData, 1);
@@ -144,15 +144,15 @@ describeWebGPU('draw on webgpu context', (env) => {
     tf.browser.draw(
         // tslint:disable-next-line:no-any
         img, canvas as any, {contextOptions: {contextType: env.name}});
-    const actualData = await readPixelsFromGPUCanvas(canvas, width, height);
+    const actualData = await readPixelsFromGPUCanvas(canvas, height, width);
     const expectedData =
         [1, 1, 1, 255, 2, 2, 2, 255, 3, 3, 3, 255, 4, 4, 4, 255];
     expectArraysEqual(actualData, expectedData);
   });
 
   it('draw image with alpha=0.5', async () => {
-    const data = [1, 2, 3, 4];
-    const width = 2;
+    const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const width = 6;
     const height = 2;
     const img = tf.tensor3d(data, [width, height, 1], 'int32');
     const canvas = getCanvas();
@@ -163,9 +163,33 @@ describeWebGPU('draw on webgpu context', (env) => {
     };
     // tslint:disable-next-line:no-any
     tf.browser.draw(img, canvas as any, drawOptions);
-    const actualData = await readPixelsFromGPUCanvas(canvas, width, height);
+    const actualData = await readPixelsFromGPUCanvas(canvas, height, width);
+    const expectedData = [
+      2,  2,  2,  128, 2,  2,  2,  128, 4,  4,  4,  128, 4,  4,  4,  128,
+      6,  6,  6,  128, 6,  6,  6,  128, 8,  8,  8,  128, 8,  8,  8,  128,
+      10, 10, 10, 128, 10, 10, 10, 128, 12, 12, 12, 128, 12, 12, 12, 128
+    ];
+    expectArraysEqual(actualData, expectedData);
+  });
+
+  it('draw image works when canvas has been used for 2d', async () => {
+    const data = [1, 2, 3, 4];
+    const width = 2;
+    const height = 2;
+    const img = tf.tensor3d(data, [width, height, 1], 'int32');
+    const canvas = getCanvas();
+    // First use canvas as 2d.
+    canvas.getContext('2d');
+
+    const drawOptions = {
+      contextOptions: {contextType: env.name},
+      imageOptions: {alpha: 0.5}
+    };
+    // tslint:disable-next-line:no-any
+    tf.browser.draw(img, canvas as any, drawOptions);
+    const actualData = await readPixelsFromGPUCanvas(canvas, height, width);
     const expectedData =
-        [1, 1, 1, 255, 1, 1, 1, 255, 2, 2, 2, 255, 2, 2, 2, 255];
+        [2, 2, 2, 128, 2, 2, 2, 128, 4, 4, 4, 128, 4, 4, 4, 128];
     expectArraysEqual(actualData, expectedData);
   });
 });
