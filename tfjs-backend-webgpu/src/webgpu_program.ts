@@ -237,7 +237,6 @@ function makeShader(
           outShapeStrides : ${outShapeStridesType},
           size            : i32,
           numChannels     : i32,
-          alpha           : f32,
         };
 
         ${inoutSnippet}

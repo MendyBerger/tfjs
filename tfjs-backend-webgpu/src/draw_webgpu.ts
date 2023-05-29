@@ -20,9 +20,8 @@ import {DataType} from '@tensorflow/tfjs-core';
 import {getMainHeaderString as main, PixelsOpType, WebGPUProgram} from './webgpu_program';
 import {computeDispatch, flatDispatchLayout} from './webgpu_util';
 
-export class ToPixelsProgram implements WebGPUProgram {
+export class DrawProgram implements WebGPUProgram {
   variableNames = ['Image'];
-  uniforms = 'alpha: f32,';
   outputShape: number[];
   shaderKey: string;
   dispatchLayout: {x: number[]};
@@ -41,7 +40,7 @@ export class ToPixelsProgram implements WebGPUProgram {
         this.dispatchLayout, this.outputShape, this.workgroupSize);
     this.type = type;
     this.textureFormat = textureFormat;
-    this.shaderKey = `toPixels_${type}`;
+    this.shaderKey = `draw_${type}`;
   }
 
   getUserCode(): string {
@@ -71,7 +70,7 @@ export class ToPixelsProgram implements WebGPUProgram {
         this.textureFormat}, write>;
        ${main('index')} {
          if (index < uniforms.size) {
-           var rgba = vec4<f32>(0.0, 0.0, 0.0, uniforms.alpha);
+           var rgba = vec4<f32>(0.0, 0.0, 0.0, 1.0);
            for (var d = 0; d < uniforms.numChannels; d = d + 1) {
              let value = f32(inBuf[index * uniforms.numChannels + d]);
              ${calculateResult}

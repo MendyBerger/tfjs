@@ -64,7 +64,6 @@ async function readPixelsFromGPUCanvas(
 
 describeWebGPU('draw on webgpu context', (env) => {
   beforeAll(async () => {
-    console.log(env.name);
     await tf.setBackend(env.name);
   });
 
@@ -150,46 +149,21 @@ describeWebGPU('draw on webgpu context', (env) => {
     expectArraysEqual(actualData, expectedData);
   });
 
-  it('draw image with alpha=0.5', async () => {
-    const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    const width = 6;
-    const height = 2;
-    const img = tf.tensor3d(data, [width, height, 1], 'int32');
-    const canvas = getCanvas();
-
-    const drawOptions = {
-      contextOptions: {contextType: env.name},
-      imageOptions: {alpha: 0.5}
-    };
-    // tslint:disable-next-line:no-any
-    tf.browser.draw(img, canvas as any, drawOptions);
-    const actualData = await readPixelsFromGPUCanvas(canvas, height, width);
-    const expectedData = [
-      2,  2,  2,  128, 2,  2,  2,  128, 4,  4,  4,  128, 4,  4,  4,  128,
-      6,  6,  6,  128, 6,  6,  6,  128, 8,  8,  8,  128, 8,  8,  8,  128,
-      10, 10, 10, 128, 10, 10, 10, 128, 12, 12, 12, 128, 12, 12, 12, 128
-    ];
-    expectArraysEqual(actualData, expectedData);
-  });
-
   it('draw image works when canvas has been used for 2d', async () => {
     const data = [1, 2, 3, 4];
     const width = 2;
     const height = 2;
-    const img = tf.tensor3d(data, [width, height, 1], 'int32');
+    const img = tf.tensor2d(data, [width, height], 'int32');
     const canvas = getCanvas();
     // First use canvas as 2d.
     canvas.getContext('2d');
 
-    const drawOptions = {
-      contextOptions: {contextType: env.name},
-      imageOptions: {alpha: 0.5}
-    };
+    const drawOptions = {contextOptions: {contextType: env.name}};
     // tslint:disable-next-line:no-any
     tf.browser.draw(img, canvas as any, drawOptions);
     const actualData = await readPixelsFromGPUCanvas(canvas, height, width);
     const expectedData =
-        [2, 2, 2, 128, 2, 2, 2, 128, 4, 4, 4, 128, 4, 4, 4, 128];
+        [1, 1, 1, 255, 2, 2, 2, 255, 3, 3, 3, 255, 4, 4, 4, 255];
     expectArraysEqual(actualData, expectedData);
   });
 });

@@ -19,7 +19,7 @@ import {KernelConfig, KernelFunc, TensorInfo} from '@tensorflow/tfjs-core';
 import {Draw, DrawAttrs, DrawInputs,} from '@tensorflow/tfjs-core';
 
 import {WebGPUBackend} from '../backend_webgpu';
-import {ToPixelsProgram} from '../to_pixels_webgpu';
+import {DrawProgram} from '../draw_webgpu';
 
 import {DrawTextureGraphicsProgram} from '../webgpu_graphics_program';
 
@@ -32,11 +32,13 @@ export function draw(
   const [height, width] = image.shape.slice(0, 2);
   const {imageOptions} = options || {};
   const alpha = imageOptions ?.alpha || 1;
+  if (alpha !== 1) {
+    throw new Error('Alpha is not supported!');
+  }
 
   const format = 'rgba8unorm';
   const outShape = [height, width];
-  const useAlpha = alpha !== 1;
-  const program = new ToPixelsProgram(outShape, image.dtype, format);
+  const program = new DrawProgram(outShape, image.dtype, format);
   canvas.width = width;
   canvas.height = height;
   let gpuContext = canvas.getContext('webgpu');
@@ -56,18 +58,17 @@ export function draw(
     alphaMode: 'premultiplied'
   });
 
-  // ToPixelsProgram first writes into a texture, then this texture will be
+  // DrawProgram first writes into a texture, then this texture will be
   // drawn into GPUCanvasContext.
   const outputDtype = 'int32';
   const usage = GPUTextureUsage.COPY_SRC | GPUTextureUsage.STORAGE_BINDING |
       GPUTextureUsage.TEXTURE_BINDING;
   const output =
       backend.makeTensorInfoWithTexture(outShape, format, outputDtype, usage);
-  const uniformData =
-      [{type: 'uint32', data: [numChannels]}, {type: 'float32', data: [alpha]}];
+  const uniformData = [{type: 'uint32', data: [numChannels]}];
   backend.runWebGPUProgram(program, [image], outputDtype, uniformData, output);
 
-  const drawTextureProgram = new DrawTextureGraphicsProgram(useAlpha);
+  const drawTextureProgram = new DrawTextureGraphicsProgram();
   backend.runWebGPUGraphicsProgram(drawTextureProgram, gpuContext, output);
   if (canvasWebGPU) {
     const canvas2dContext = canvas.getContext('2d');
