@@ -64,7 +64,6 @@ async function readPixelsFromGPUCanvas(
 
 describeWebGPU('draw on webgpu context', (env) => {
   beforeAll(async () => {
-    console.log(env.name);
     await tf.setBackend(env.name);
   });
 
@@ -165,9 +164,9 @@ describeWebGPU('draw on webgpu context', (env) => {
     tf.browser.draw(img, canvas as any, drawOptions);
     const actualData = await readPixelsFromGPUCanvas(canvas, height, width);
     const expectedData = [
-      2,  2,  2,  128, 2,  2,  2,  128, 4,  4,  4,  128, 4,  4,  4,  128,
-      6,  6,  6,  128, 6,  6,  6,  128, 8,  8,  8,  128, 8,  8,  8,  128,
-      10, 10, 10, 128, 10, 10, 10, 128, 12, 12, 12, 128, 12, 12, 12, 128
+      2,  2,  2,  128, 4,  4,  4,  128, 6,  6,  6,  128, 8,  8,  8,  128,
+      10, 10, 10, 128, 12, 12, 12, 128, 14, 14, 14, 128, 16, 16, 16, 128,
+      18, 18, 18, 128, 20, 20, 20, 128, 22, 22, 22, 128, 24, 24, 24, 128
     ];
     expectArraysEqual(actualData, expectedData);
   });
@@ -189,7 +188,7 @@ describeWebGPU('draw on webgpu context', (env) => {
     tf.browser.draw(img, canvas as any, drawOptions);
     const actualData = await readPixelsFromGPUCanvas(canvas, height, width);
     const expectedData =
-        [2, 2, 2, 128, 2, 2, 2, 128, 4, 4, 4, 128, 4, 4, 4, 128];
+        [2, 2, 2, 128, 4, 4, 4, 128, 6, 6, 6, 128, 8, 8, 8, 128];
     expectArraysEqual(actualData, expectedData);
   });
 });

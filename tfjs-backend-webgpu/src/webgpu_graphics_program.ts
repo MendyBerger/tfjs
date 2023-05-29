@@ -16,19 +16,16 @@
  */
 
 export interface WebGPUGraphicsProgram {
-  alphaMode?: boolean;
   // The unique key to distinguish different shader source code.
   shaderKey: string;
   getUserCode: () => string[];
 }
 
 export class DrawTextureGraphicsProgram implements WebGPUGraphicsProgram {
-  alphaMode = false;
   shaderKey: string;
 
-  constructor(alphaMode: boolean) {
-    this.alphaMode = alphaMode;
-    this.shaderKey = `drawTexture_${alphaMode}`;
+  constructor() {
+    this.shaderKey = 'drawTexture';
   }
 
   getUserCode() {
@@ -71,24 +68,7 @@ export const compileGraphicsProgram =
             code: fragementShader,
           }),
           entryPoint: 'main',
-          targets:
-              [program.alphaMode ? {
-                format: 'bgra8unorm',
-                blend: {
-                  color: {
-                    srcFactor: 'src-alpha',
-                    dstFactor: 'one-minus-src-alpha',
-                    operation: 'add',
-                  },
-                  alpha: {
-                    srcFactor: 'one',
-                    dstFactor: 'one-minus-src-alpha',
-                    operation: 'add',
-                  },
-                },
-              } :
-                                   {format: 'bgra8unorm'}],
-
+          targets: [{format: 'bgra8unorm'}],
         },
       });
       return renderPipeline;
