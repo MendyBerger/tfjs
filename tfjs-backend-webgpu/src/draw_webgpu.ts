@@ -20,7 +20,7 @@ import {DataType} from '@tensorflow/tfjs-core';
 import {getMainHeaderString as main, PixelsOpType, WebGPUProgram} from './webgpu_program';
 import {computeDispatch, flatDispatchLayout} from './webgpu_util';
 
-export class ToPixelsProgram implements WebGPUProgram {
+export class DrawProgram implements WebGPUProgram {
   variableNames = ['Image'];
   uniforms = 'alpha: f32,';
   outputShape: number[];
