@@ -16,7 +16,7 @@
  */
 
 import * as tf from '../index';
-import {BROWSER_ENVS, Constraints, describeWithFlags} from '../jasmine_util';
+import {BROWSER_ENVS, describeWithFlags} from '../jasmine_util';
 import {expectArraysClose, expectArraysEqual} from '../test_util';
 
 class MockContext {
@@ -44,12 +44,7 @@ class MockCanvas {
   }
 }
 
-const BROWSER_NO_WEBGPU_ENVS: Constraints = {
-  predicate: (env) =>
-      (env.backendName !== 'webgpu' && tf.env().platformName === 'browser')
-};
-
-describeWithFlags('draw on 2d context', BROWSER_NO_WEBGPU_ENVS, () => {
+describeWithFlags('draw on 2d context', BROWSER_ENVS, () => {
   it('draw image with 4 channels and int values', async () => {
     const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
     const img = tf.tensor3d(data, [2, 2, 4], 'int32');
@@ -152,8 +147,10 @@ async function readPixelsFromGPUCanvas(
 }
 
 describeWithFlags('draw on browser canvas', BROWSER_ENVS, (env) => {
+  let contextType: string;
   beforeAll(async () => {
     await tf.setBackend(env.name);
+    contextType = (env.name === 'cpu') ? '2d' : env.name;
   });
 
   it('draw image with 4 channels and int values', async () => {
@@ -165,7 +162,7 @@ describeWithFlags('draw on browser canvas', BROWSER_ENVS, (env) => {
     const startNumTensors = tf.memory().numTensors;
     tf.browser.draw(
         // tslint:disable-next-line:no-any
-        img, canvas as any, {contextOptions: {contextType: env.name}});
+        img, canvas as any, {contextOptions: {contextType}});
     expect(tf.memory().numTensors).toEqual(startNumTensors);
     expectArraysClose(
         await readPixelsFromGPUCanvas(
@@ -184,7 +181,7 @@ describeWithFlags('draw on browser canvas', BROWSER_ENVS, (env) => {
 
     tf.browser.draw(
         // tslint:disable-next-line:no-any
-        img, canvas as any, {contextOptions: {contextType: env.name}});
+        img, canvas as any, {contextOptions: {contextType}});
     const actualData =
         await readPixelsFromGPUCanvas(canvas, height, width, unmultiplyAlpha);
     expectArraysClose(actualData, data, 0.01);
@@ -199,7 +196,7 @@ describeWithFlags('draw on browser canvas', BROWSER_ENVS, (env) => {
 
     tf.browser.draw(
         // tslint:disable-next-line:no-any
-        img, canvas as any, {contextOptions: {contextType: env.name}});
+        img, canvas as any, {contextOptions: {contextType}});
     expectArraysEqual(
         await readPixelsFromGPUCanvas(canvas, height, width, removeLastChannel),
         data);
@@ -214,7 +211,7 @@ describeWithFlags('draw on browser canvas', BROWSER_ENVS, (env) => {
 
     tf.browser.draw(
         // tslint:disable-next-line:no-any
-        img, canvas as any, {contextOptions: {contextType: env.name}});
+        img, canvas as any, {contextOptions: {contextType}});
     const actualData =
         await readPixelsFromGPUCanvas(canvas, height, width, removeLastChannel);
     const expectedData = [25, 51, 76, 102, 128, 153, 178, 204, 229, 25, 28, 31];
@@ -231,7 +228,7 @@ describeWithFlags('draw on browser canvas', BROWSER_ENVS, (env) => {
 
     tf.browser.draw(
         // tslint:disable-next-line:no-any
-        img, canvas as any, {contextOptions: {contextType: env.name}});
+        img, canvas as any, {contextOptions: {contextType}});
     const actualData = await readPixelsFromGPUCanvas(canvas, height, width);
     const expectedData =
         [1, 1, 1, 255, 2, 2, 2, 255, 3, 3, 3, 255, 4, 4, 4, 255];
@@ -246,7 +243,7 @@ describeWithFlags('draw on browser canvas', BROWSER_ENVS, (env) => {
     const canvas = getCanvas();
 
     const drawOptions = {
-      contextOptions: {contextType: env.name},
+      contextOptions: {contextType},
       imageOptions: {alpha: 0.5}
     };
     // tslint:disable-next-line:no-any
