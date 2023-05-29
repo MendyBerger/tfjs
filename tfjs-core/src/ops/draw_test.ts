@@ -49,7 +49,7 @@ const BROWSER_NO_WEBGPU_ENVS: Constraints = {
       (env.backendName !== 'webgpu' && tf.env().platformName === 'browser')
 };
 
-describeWithFlags('Draw on 2d context', BROWSER_NO_WEBGPU_ENVS, () => {
+describeWithFlags('draw on 2d context', BROWSER_NO_WEBGPU_ENVS, () => {
   it('draw image with 4 channels and int values', async () => {
     const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
     const img = tf.tensor3d(data, [2, 2, 4], 'int32');
