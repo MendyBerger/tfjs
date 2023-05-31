@@ -149,21 +149,46 @@ describeWebGPU('draw on webgpu context', (env) => {
     expectArraysEqual(actualData, expectedData);
   });
 
+  it('draw image with alpha=0.5', async () => {
+    const data = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+    const width = 6;
+    const height = 2;
+    const img = tf.tensor3d(data, [width, height, 1], 'int32');
+    const canvas = getCanvas();
+
+    const drawOptions = {
+      contextOptions: {contextType: env.name},
+      imageOptions: {alpha: 0.5}
+    };
+    // tslint:disable-next-line:no-any
+    tf.browser.draw(img, canvas as any, drawOptions);
+    const actualData = await readPixelsFromGPUCanvas(canvas, height, width);
+    const expectedData = [
+      11, 11, 11, 255, 12, 12, 12, 255, 13, 13, 13, 255, 14, 14, 14, 255,
+      15, 15, 15, 255, 16, 16, 16, 255, 17, 17, 17, 255, 18, 18, 18, 255,
+      19, 19, 19, 255, 20, 20, 20, 255, 21, 21, 21, 255, 22, 22, 22, 255
+    ];
+    expectArraysClose(actualData, expectedData, 1);
+  });
+
   it('draw image works when canvas has been used for 2d', async () => {
-    const data = [1, 2, 3, 4];
+    const data = [11, 12, 13, 14];
     const width = 2;
     const height = 2;
-    const img = tf.tensor2d(data, [width, height], 'int32');
+    const img = tf.tensor3d(data, [width, height, 1], 'int32');
     const canvas = getCanvas();
     // First use canvas as 2d.
     canvas.getContext('2d');
 
-    const drawOptions = {contextOptions: {contextType: env.name}};
+    const drawOptions = {
+      contextOptions: {contextType: env.name},
+      imageOptions: {alpha: 0.5}
+    };
     // tslint:disable-next-line:no-any
     tf.browser.draw(img, canvas as any, drawOptions);
     const actualData = await readPixelsFromGPUCanvas(canvas, height, width);
     const expectedData =
-        [1, 1, 1, 255, 2, 2, 2, 255, 3, 3, 3, 255, 4, 4, 4, 255];
-    expectArraysEqual(actualData, expectedData);
+        [11, 11, 11, 255, 12, 12, 12, 255, 13, 13, 13, 255, 14, 14, 14, 255.];
+    expectArraysClose(actualData, expectedData, 1);
   });
 });
