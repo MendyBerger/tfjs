@@ -58,9 +58,9 @@ export class DrawProgram implements WebGPUProgram {
     } else {
       calculateResult = `
       if (uniforms.numChannels == 1) {
-        rgba[0] = value / 255.0;
-        rgba[1] = value / 255.0;
-        rgba[2] = value / 255.0;
+        rgba[0] = value / 255.0 * uniforms.alpha;
+        rgba[1] = value / 255.0 * uniforms.alpha;
+        rgba[2] = value / 255.0 * uniforms.alpha;
       } else {
         rgba[d] = value / 255.0;
       }`;
