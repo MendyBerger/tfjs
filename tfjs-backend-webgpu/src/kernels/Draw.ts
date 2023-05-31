@@ -32,9 +32,6 @@ export function draw(
   const [height, width] = image.shape.slice(0, 2);
   const {imageOptions} = options || {};
   const alpha = imageOptions ?.alpha || 1;
-  if (alpha !== 1) {
-    throw new Error('Alpha is not supported!');
-  }
 
   const format = 'rgba8unorm';
   const outShape = [height, width];
@@ -65,7 +62,8 @@ export function draw(
       GPUTextureUsage.TEXTURE_BINDING;
   const output =
       backend.makeTensorInfoWithTexture(outShape, format, outputDtype, usage);
-  const uniformData = [{type: 'uint32', data: [numChannels]}];
+  const uniformData =
+      [{type: 'uint32', data: [numChannels]}, {type: 'float32', data: [alpha]}];
   backend.runWebGPUProgram(program, [image], outputDtype, uniformData, output);
 
   const drawTextureProgram = new DrawTextureGraphicsProgram();
