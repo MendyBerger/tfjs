@@ -127,7 +127,7 @@ const TEST_FILTERS: TestFilter[] = [
     ],
   },
   {
-    startsWith: 'Draw',
+    startsWith: 'draw',
     excludes: [
       'on 2d context',
     ]
