@@ -240,7 +240,7 @@ describeWithFlags('draw on webgpu context', BROWSER_ENVS, (env) => {
   });
 
   it('draw image with alpha=0.5', async () => {
-    const data = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+    const data = [101, 212, 113, 14, 35, 76, 17, 38, 59, 70, 81, 92];
     const width = 6;
     const height = 2;
     const img = tf.tensor3d(data, [width, height, 1], 'int32');
@@ -254,16 +254,17 @@ describeWithFlags('draw on webgpu context', BROWSER_ENVS, (env) => {
     tf.browser.draw(img, canvas as any, drawOptions);
     const actualData = await readPixelsFromGPUCanvas(canvas, height, width);
     const expectedData = [
-      11, 11, 11, 255, 12, 12, 12, 255, 13, 13, 13, 255, 14, 14, 14, 255,
-      15, 15, 15, 255, 16, 16, 16, 255, 17, 17, 17, 255, 18, 18, 18, 255,
-      19, 19, 19, 255, 20, 20, 20, 255, 21, 21, 21, 255, 22, 22, 22, 255
+      102, 102, 102, 128, 211, 211, 211, 128, 114, 114, 114, 128,
+      14,  14,  14,  128, 36,  36,  36,  128, 76,  76,  76,  128,
+      18,  18,  18,  128, 38,  38,  38,  128, 60,  60,  60,  128,
+      70,  70,  70,  128, 82,  82,  82,  128, 92,  92,  92,  128
     ];
     expectArraysClose(actualData, expectedData, 1);
   });
 
   it('draw image works when canvas has been used for 2d', async () => {
-    const data = [11, 12, 13, 14];
-    const width = 2;
+    const data = [101, 212, 113, 14, 35, 76, 17, 38, 59, 70, 81, 92];
+    const width = 6;
     const height = 2;
     const img = tf.tensor3d(data, [width, height, 1], 'int32');
     const canvas = getCanvas();
@@ -277,8 +278,12 @@ describeWithFlags('draw on webgpu context', BROWSER_ENVS, (env) => {
     // tslint:disable-next-line:no-any
     tf.browser.draw(img, canvas as any, drawOptions);
     const actualData = await readPixelsFromGPUCanvas(canvas, height, width);
-    const expectedData =
-        [11, 11, 11, 255, 12, 12, 12, 255, 13, 13, 13, 255, 14, 14, 14, 255.];
+    const expectedData = [
+      102, 102, 102, 128, 211, 211, 211, 128, 114, 114, 114, 128,
+      14,  14,  14,  128, 36,  36,  36,  128, 76,  76,  76,  128,
+      18,  18,  18,  128, 38,  38,  38,  128, 60,  60,  60,  128,
+      70,  70,  70,  128, 82,  82,  82,  128, 92,  92,  92,  128
+    ];
     expectArraysClose(actualData, expectedData, 1);
   });
 });
