@@ -22,6 +22,7 @@ import {computeDispatch, flatDispatchLayout} from './webgpu_util';
 
 export class DrawProgram implements WebGPUProgram {
   variableNames = ['Image'];
+  uniforms = 'alpha: f32,';
   outputShape: number[];
   shaderKey: string;
   dispatchLayout: {x: number[]};
@@ -57,9 +58,9 @@ export class DrawProgram implements WebGPUProgram {
     } else {
       calculateResult = `
       if (uniforms.numChannels == 1) {
-        rgba[0] = value / 255.0;
-        rgba[1] = value / 255.0;
-        rgba[2] = value / 255.0;
+        rgba[0] = value / 255.0 * uniforms.alpha;
+        rgba[1] = value / 255.0 * uniforms.alpha;
+        rgba[2] = value / 255.0 * uniforms.alpha;
       } else {
         rgba[d] = value / 255.0;
       }`;
@@ -70,7 +71,7 @@ export class DrawProgram implements WebGPUProgram {
         this.textureFormat}, write>;
        ${main('index')} {
          if (index < uniforms.size) {
-           var rgba = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+           var rgba = vec4<f32>(0.0, 0.0, 0.0, uniforms.alpha);
            for (var d = 0; d < uniforms.numChannels; d = d + 1) {
              let value = f32(inBuf[index * uniforms.numChannels + d]);
              ${calculateResult}
