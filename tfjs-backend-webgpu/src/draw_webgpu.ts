@@ -61,6 +61,7 @@ export class DrawProgram implements WebGPUProgram {
         rgba[0] = value / 255.0 * uniforms.alpha;
         rgba[1] = value / 255.0 * uniforms.alpha;
         rgba[2] = value / 255.0 * uniforms.alpha;
+        rgba[3] = uniforms.alpha;
       } else {
         rgba[d] = value / 255.0;
       }`;
