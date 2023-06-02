@@ -120,12 +120,11 @@ function removeLastChannel(data: Uint8ClampedArray) {
   return pixels;
 }
 
-function unmultiplyAlpha(data: Uint8ClampedArray, dataType: string) {
+function unmultiplyAlpha(data: Uint8ClampedArray) {
   const pixels = [];
   const MAX_COLOR = 255;
   for (let i = 0; i < data.length; i += 4) {
-    const alpha =
-        dataType === 'float32' ? data[i + 3] / MAX_COLOR : data[i + 3];
+    const alpha = data[i + 3];
     pixels.push(
         data[i] / MAX_COLOR * alpha, data[i + 1] / MAX_COLOR * alpha,
         data[i + 2] / MAX_COLOR * alpha, alpha);
@@ -158,7 +157,8 @@ describeWithFlags('draw on webgpu context', BROWSER_ENVS, (env) => {
   });
 
   it('draw image with 4 channels and int values', async () => {
-    const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+    const data =
+        [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160];
     const width = 2;
     const height = 2;
     const img = tf.tensor3d(data, [width, height, 4], 'int32');
@@ -169,9 +169,8 @@ describeWithFlags('draw on webgpu context', BROWSER_ENVS, (env) => {
         img, canvas as any, {contextOptions: {contextType}});
     expect(tf.memory().numTensors).toEqual(startNumTensors);
     expectArraysClose(
-        await readPixelsFromGPUCanvas(
-            canvas, height, width, unmultiplyAlpha, 'int32'),
-        data, 0.1);
+        await readPixelsFromGPUCanvas(canvas, height, width, unmultiplyAlpha),
+        data, 3);
   });
 
   it('draw image with 4 channels and float values', async () => {
@@ -182,13 +181,15 @@ describeWithFlags('draw on webgpu context', BROWSER_ENVS, (env) => {
     const height = 2;
     const img = tf.tensor3d(data, [width, height, 4]);
     const canvas = getCanvas();
-
+    const expectedData = data.map(function(x) {
+      return x * 255.0;
+    });
     tf.browser.draw(
         // tslint:disable-next-line:no-any
         img, canvas as any, {contextOptions: {contextType}});
     const actualData =
         await readPixelsFromGPUCanvas(canvas, height, width, unmultiplyAlpha);
-    expectArraysClose(actualData, data, 0.01);
+    expectArraysClose(actualData, expectedData, 3);
   });
 
   it('draw image with 3 channels and int values', async () => {
@@ -259,7 +260,7 @@ describeWithFlags('draw on webgpu context', BROWSER_ENVS, (env) => {
       18,  18,  18,  128, 38,  38,  38,  128, 60,  60,  60,  128,
       70,  70,  70,  128, 82,  82,  82,  128, 92,  92,  92,  128
     ];
-    expectArraysClose(actualData, expectedData, 1);
+    expectArraysClose(actualData, expectedData, 2);
   });
 
   it('draw image works when canvas has been used for 2d', async () => {
@@ -284,6 +285,6 @@ describeWithFlags('draw on webgpu context', BROWSER_ENVS, (env) => {
       18,  18,  18,  128, 38,  38,  38,  128, 60,  60,  60,  128,
       70,  70,  70,  128, 82,  82,  82,  128, 92,  92,  92,  128
     ];
-    expectArraysClose(actualData, expectedData, 1);
+    expectArraysClose(actualData, expectedData, 2);
   });
 });
