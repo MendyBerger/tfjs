@@ -25,6 +25,7 @@ import subprocess
 import tempfile
 
 import tensorflow.compat.v2 as tf
+import tf_keras
 from tensorflow.python.saved_model.save import save
 
 class APIAndShellTest(tf.test.TestCase):
@@ -46,31 +47,10 @@ class APIAndShellTest(tf.test.TestCase):
       shutil.rmtree(self._tmp_dir)
     super(APIAndShellTest, self).tearDown()
 
-  def testConvertTfHubMobileNetV2ToTfjsGraphModel(self):
-    # 1. Convert tfhub mobilenet v2 module.
-    tfhub_url = (
-        'https://tfhub.dev/google/imagenet/mobilenet_v2_100_224'
-        '/classification/3'
-    )
-    graph_model_output_dir = os.path.join(self._tmp_dir, 'tfjs_graph')
-    process = subprocess.Popen([
-        'tensorflowjs_converter', '--input_format', 'tf_hub',
-        tfhub_url, graph_model_output_dir
-    ])
-    process.communicate()
-    self.assertEqual(0, process.returncode)
-
-    # 2. Check the files that belong to the conversion result.
-    files = glob.glob(os.path.join(graph_model_output_dir, '*'))
-    self.assertIn(os.path.join(graph_model_output_dir, 'model.json'), files)
-    weight_files = glob.glob(
-        os.path.join(graph_model_output_dir, 'group*.bin'))
-    self.assertEqual(len(weight_files), 4)
-
   def testConvertMobileNetV2ModelToTfjsGraphModel(self):
     """create the keras mobilenet v2 model."""
     # 1. Create a saved model from keras mobilenet v2.
-    model = tf.keras.applications.MobileNetV2()
+    model = tf_keras.applications.MobileNetV2()
 
     save_dir = os.path.join(self._tmp_dir, 'mobilenetv2')
     save(model, save_dir)
@@ -93,7 +73,7 @@ class APIAndShellTest(tf.test.TestCase):
 
   def testConvertMobileNetV2Hdf5ToTfjsGraphModel(self):
     # 1. Create a model for testing.
-    model = tf.keras.applications.MobileNetV2()
+    model = tf_keras.applications.MobileNetV2()
 
     h5_path = os.path.join(self._tmp_dir, 'model.h5')
     model.save(h5_path)

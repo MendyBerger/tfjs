@@ -17,7 +17,7 @@ using an already hosted model (e.g. MobileNet), skip this step.
 2. [JavaScript API](./src/executor/graph_model.ts), for loading and running
 inference.
 
-## Step 1: Converting a [TensorFlow SavedModel](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/saved_model/README.md), [TensorFlow Hub module](https://www.tensorflow.org/hub/), [Keras HDF5](https://keras.io/getting-started/faq/#how-can-i-save-a-keras-model), [tf.keras SavedModel](https://www.tensorflow.org/api_docs/python/tf/contrib/saved_model/save_keras_model), or [Flax/JAX model](http://github.com/google/flax) to a web-friendly format
+## Step 1: Converting a [TensorFlow SavedModel](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/saved_model/README.md), [TensorFlow Hub module](https://www.tensorflow.org/hub/), [Keras HDF5](https://keras.io/getting_started/faq/#what-are-my-options-for-saving-models), [tf.keras SavedModel](https://www.tensorflow.org/api_docs/python/tf/keras/models/save_model), or [Flax/JAX model](http://github.com/google/flax) to a web-friendly format
 
 __0. Please make sure that you run in a Docker container or a virtual environment.__
 
@@ -26,14 +26,14 @@ __0. Please make sure that you run in a Docker container or a virtual environmen
 
 __Note__: *Check that [`tf-nightly-cpu-2.0-preview`](https://pypi.org/project/tf-nightly-cpu-2.0-preview/#files) is available for your platform.*
 
-Most of the times, this means that you have to use Python 3.6.8 in your local
-environment. To force Python 3.6.8 in your local project, you can install
+Most of the times, this means that you have to use Python 3.7.10 in your local
+environment. To force Python 3.7.10 in your local project, you can install
 [`pyenv`](https://github.com/pyenv/pyenv) and proceed as follows in the target
 directory:
 
 ```bash
-pyenv install 3.6.8
-pyenv local 3.6.8
+pyenv install 3.7.10
+pyenv local 3.7.10
 ```
 
 Now, you can
@@ -41,7 +41,7 @@ Now, you can
 a `venv` virtual environment in your current folder:
 
 ```bash
-virtualenv --no-site-packages venv
+virtualenv venv
 . venv/bin/activate
 ```
 
@@ -186,7 +186,7 @@ most cases.
 | `keras_saved_model` | `tfjs_layers_model` | Convert a tf.keras SavedModel model file (from [`tf.contrib.saved_model.save_keras_model`](https://www.tensorflow.org/api_docs/python/tf/contrib/saved_model/save_keras_model)) to TensorFlow.js Layers model format. Use [`tf.loadLayersModel()`](https://js.tensorflow.org/api/latest/#loadLayersModel) to load the model in JavaScript. |
 | `tf_hub` | `tfjs_graph_model` | Convert a [TF-Hub](https://www.tensorflow.org/hub) model file to TensorFlow.js graph model format. Use [`tf.loadGraphModel()`](https://js.tensorflow.org/api/latest/#loadGraphModel) to load the converted model in JavaScript. |
 | `tf_saved_model` | `tfjs_graph_model` | Convert a [TensorFlow SavedModel](https://www.tensorflow.org/guide/saved_model#build_and_load_a_savedmodel) to TensorFlow.js graph model format. Use [`tf.loadGraphModel()`](https://js.tensorflow.org/api/latest/#loadGraphModel) to load the converted model in JavaScript. |
-| `tf_frozen_model` | `tfjs_graph_model` | Convert a [Frozen Model](https://www.tensorflow.org/mobile/prepare_models#how_do_you_get_a_model_you_can_use_on_mobile) to TensorFlow.js graph model format. Use [`tf.loadGraphModel()`](https://js.tensorflow.org/api/latest/#loadGraphModel) to load the converted model in JavaScript. |
+| `tf_frozen_model` | `tfjs_graph_model` | Convert a [Frozen Model](https://medium.com/@sebastingarcaacosta/how-to-export-a-tensorflow-2-x-keras-model-to-a-frozen-and-optimized-graph-39740846d9eb) to TensorFlow.js graph model format. Use [`tf.loadGraphModel()`](https://js.tensorflow.org/api/latest/#loadGraphModel) to load the converted model in JavaScript. |
 
 #### JavaScript-to-Python
 
@@ -319,7 +319,7 @@ jax_conversion.convert_jax(
 ```
 
 See
-[here](https://github.com/google/jax/tree/main/jax/experimental/jax2tf#shape-polymorphic-conversion)
+[here](https://github.com/jax-ml/jax/tree/main/jax/experimental/jax2tf#shape-polymorphic-conversion)
 for more details on the exact syntax for this argument.
 
 When converting JAX models, you can also pass any [options that

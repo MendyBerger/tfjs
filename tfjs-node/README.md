@@ -39,9 +39,9 @@ npm install @tensorflow/tfjs-node-gpu
 yarn add @tensorflow/tfjs-node-gpu
 ```
 
-#### Windows / Mac OS X Requires Python 2.7
+#### Windows / Mac OS X Requires Supported Version of Python
 
-Windows & OSX build support for `node-gyp` requires Python 2.7. Be sure to have this version before installing `@tensorflow/tfjs-node` or `@tensorflow/tfjs-node-gpu`. Machines with Python 3.x will not install the bindings properly.
+Windows & OSX build support for `node-gyp` requires that you have installed a [supported version of Python](https://devguide.python.org/versions/#supported-versions). Be sure to have supported version of Python before installing `@tensorflow/tfjs-node` or `@tensorflow/tfjs-node-gpu`.
 
 *For more troubleshooting on Windows, check out [WINDOWS_TROUBLESHOOTING.md](./WINDOWS_TROUBLESHOOTING.md).*
 
@@ -52,7 +52,7 @@ If you do not have Xcode setup on your machine, please run the following command
 ```sh
 $ xcode-select --install
 ```
-For Mac OS Catalina please follow [this guide](https://github.com/nodejs/node-gyp/blob/master/macOS_Catalina.md#installing-node-gyp-using-the-xcode-command-line-tools-via-manual-download) to install node-gyp.
+For Mac OS Catalina please follow [this guide](https://github.com/nodejs/node-gyp/tree/main#on-macos) to install node-gyp.
 
 After that operation completes, re-run `yarn add` or `npm install` for the `@tensorflow/tfjs-node` package.
 

@@ -37,6 +37,7 @@ const CUSTOM_LAUNCHERS = {
     os: 'OS X',
     os_version: 'High Sierra',
     flags: [
+      '--use-mock-keychain',
       // For tfjs-data
       '--autoplay-policy=no-user-gesture-required',
     ],
@@ -53,7 +54,7 @@ const CUSTOM_LAUNCHERS = {
     browser: 'safari',
     browser_version: 'latest',
     os: 'OS X',
-    os_version: 'High Sierra'
+    os_version: 'Mojave'
   },
   bs_ios_12: {
     base: 'BrowserStack',
@@ -62,11 +63,11 @@ const CUSTOM_LAUNCHERS = {
     os_version: '12.3',
     real_mobile: true
   },
-  bs_ios_15: {
+  bs_ios_17: {
     base: 'BrowserStack',
-    device: 'iPhone 11 Pro',
+    device: 'iPhone 15 Pro Max',
     os: 'ios',
-    os_version: '15',
+    os_version: '17',
     real_mobile: true
   },
   bs_android_10: {
@@ -96,6 +97,7 @@ const CUSTOM_LAUNCHERS = {
     flags: [
       '--enable-unsafe-webgpu',  // Can be removed after WebGPU release
       '--use-webgpu-adapter=swiftshader',
+      '--use-mock-keychain',
 
       // https://github.com/tensorflow/tfjs/issues/7631
       '--disable-vulkan-fallback-to-gl-for-testing',
@@ -103,37 +105,50 @@ const CUSTOM_LAUNCHERS = {
   },
   chrome_with_swift_shader: {
     base: CHROME,
-    flags: ['--blacklist-accelerated-compositing', '--blacklist-webgl']
+    flags: [
+      '--blacklist-accelerated-compositing',
+      '--blacklist-webgl',
+      '--use-mock-keychain',
+    ]
   },
   chrome_autoplay: {
     base: CHROME,
     flags: [
       '--autoplay-policy=no-user-gesture-required',
       '--no-sandbox',
+      '--use-mock-keychain',
     ],
   },
   chrome_webgpu_linux: {
-    base: 'ChromeCanary',
+    base: 'ChromeHeadless',
     flags: [
       '--enable-features=Vulkan',
       '--enable-unsafe-webgpu',
       '--disable-dawn-features=disallow_unsafe_apis',
+      '--use-mock-keychain',
     ]
   },
   chrome_webgpu: {
-    base: 'ChromeCanary',
+    base: 'Chrome',
     flags: [
       '--disable-dawn-features=disallow_unsafe_apis',
       '--no-sandbox',
+      '--use-mock-keychain',
     ]
   },
   chrome_debugging: {
     base: 'Chrome',
-    flags: ['--remote-debugging-port=9333'],
+    flags: [
+      '--remote-debugging-port=9333',
+      '--use-mock-keychain',
+    ],
   },
   chrome_no_sandbox: {
     base: CHROME,
-    flags: ['--no-sandbox'],
+    flags: [
+      '--no-sandbox',
+      '--use-mock-keychain',
+    ],
   }
 };
 
@@ -173,7 +188,8 @@ module.exports = function(config) {
       // This is necessary for non-flaky Safari tests. They usually pass just
       // fine without it, but sometimes, Safari will fail to connect to Karma.
       // If you want to remove this, prove that it's not flaky by running
-      // bazel test //tfjs-core/src:bs_safari_mac_from_pixels_worker_test --runs_per_test=100
+      // bazel test //tfjs-core/src:bs_safari_mac_from_pixels_worker_test
+      // --runs_per_test=100
       extraConfig.hostname = 'bs-local.com';
     }
 

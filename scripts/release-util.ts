@@ -415,7 +415,7 @@ export async function getReleaseBranch(name: string): Promise<string> {
       Array.from(branchesStr.split(/\n/)).map(line => line.toString().trim());
 
   // Find the latest matching branch, e.g. tfjs_1.7.1
-  // It will not match temprary generated branches such as tfjs_1.7.1_phase0.
+  // It will not match temporary generated branches such as tfjs_1.7.1_phase0.
   const exp = '^' + name + '_([^_]+)$';
   const regObj = new RegExp(exp);
   const maybeBranch = branches.find(branch => branch.match(regObj));
@@ -601,6 +601,8 @@ export async function getNpmVersion(pkg: string, registry?: string,
 export function getTagFromVersion(version: string): string {
   if (version.includes('dev')) {
     return 'nightly';
+  }else if (version.includes('rc')) {
+    return 'next';
   }
   return 'latest';
 }
@@ -638,7 +640,8 @@ export async function runVerdaccio(): Promise<() => void> {
 
     serverProcess.on('message', (msg: {verdaccio_started: boolean}) => {
       if (msg.verdaccio_started) {
-        console.log('Verdaccio Started.');
+        console.log(chalk.magenta.bold(
+            `Verdaccio Started. Visit http://localhost:4873 to see packages.`));
         clearTimeout(timeout);
         resolve();
       }

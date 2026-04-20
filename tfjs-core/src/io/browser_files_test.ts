@@ -259,7 +259,7 @@ describeWithFlags('browserDownloads', BROWSER_ENVS, () => {
     // Verify that the default file names are used.
     expect(jsonAnchor.download).toEqual('model.json');
     expect(jsonAnchor.clicked).toEqual(1);
-    // The weight file should not have been downoaded.
+    // The weight file should not have been downloaded.
     expect(weightDataAnchor.download).toEqual(undefined);
     expect(weightDataAnchor.clicked).toEqual(0);
 
@@ -676,5 +676,13 @@ describeWithFlags('browserFiles', BROWSER_ENVS, () => {
   it('Incorrect number of files leads to Error', () => {
     expect(() => tf.io.browserFiles(null)).toThrowError(/at least 1 file/);
     expect(() => tf.io.browserFiles([])).toThrowError(/at least 1 file/);
+  });
+
+  it('Invalid JSON leads to Error', async () => {
+    const file = new File(['invalid'], 'model.json', {
+      type: 'application/json',
+    });
+    const filesHandler = tf.io.browserFiles([file]);
+    await expectAsync(filesHandler.load()).toBeRejectedWithError(/parse file/);
   });
 });

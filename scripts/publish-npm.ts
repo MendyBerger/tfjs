@@ -77,7 +77,7 @@ function setDifference<T>(a: Set<T>, b: Set<T>): Set<T> {
 const parser = new argparse.ArgumentParser();
 parser.addArgument('--git-protocol', {
   action: 'storeTrue',
-  help: 'Use the git protocal rather than the http protocol when cloning repos.'
+  help: 'Use the git protocol rather than the http protocol when cloning repos.'
 });
 
 parser.addArgument('--registry', {
@@ -110,7 +110,9 @@ parser.addArgument(['--auto-publish-local-newer'], {
 
 parser.addArgument(['--ci'], {
   action: 'storeTrue',
-  help: 'Enable CI bazel flags for faster compilation. No effect on results.',
+  help: 'Enable CI bazel flags for faster compilation and don\'t ask for user '
+      + 'input before closing the verdaccio server once tests are done. '
+      + 'Has no effect on results.',
 });
 
 parser.addArgument(['packages'], {
@@ -201,15 +203,15 @@ async function publish(pkg: string, registry: string, otp?: string,
       await retry(() =>
           run(`${login}yarn --registry '${registry}' publish-npm ${dashes} ${otpFlag} --tag=${tag} --force`));
     } else {
-      // Publish the package to the registry.
-      await retry(() =>
-          run(`${login}npm --registry '${registry}' publish ${otpFlag}`));
-
       // Special case for tfjs-node(-gpu), which must upload the node addon
       // to GCP as well. Only do this when publishing to NPM.
       if (registry === NPM_REGISTRY && pkg.startsWith('tfjs-node')) {
         $('yarn build-and-upload-addon publish');
       }
+
+      // Publish the package to the registry.
+      await retry(() =>
+          run(`${login}npm --registry '${registry}' publish --tag=${tag} ${otpFlag}`));
     }
     console.log(`Published ${pkg} to ${registry}.`);
 
@@ -220,6 +222,8 @@ async function publish(pkg: string, registry: string, otp?: string,
 
 async function main() {
   const args = parser.parseArgs();
+
+  const killVerdaccio = await runVerdaccio();
 
   let releaseUnits: ReleaseUnit[];
   if (args.release_this_branch) {
@@ -346,7 +350,8 @@ async function main() {
 
   const bazelArgs = ['bazel', 'build']
   if (args.ci) {
-    bazelArgs.push('--config=ci');
+    // Disabled for now since github actions don't have a gcp key currently.
+    // bazelArgs.push('--config=ci');
   }
   // Use child_process.spawnSync to show bazel build progress.
   const result = child_process.spawnSync('yarn',
@@ -359,19 +364,24 @@ async function main() {
   // Build and publish all packages to a local Verdaccio repo for staging.
   console.log(
     chalk.magenta.bold('~~~ Staging packages locally in Verdaccio ~~~'));
-  const killVerdaccio = await runVerdaccio();
+
   try {
     for (const pkg of packages) {
       await publish(pkg, VERDACCIO_REGISTRY);
     }
-  } finally {
+  } catch (e) {
     // Make sure to kill the verdaccio server before exiting even if publish
     // throws an error. Otherwise, it blocks the port for the next run.
     killVerdaccio();
+    throw e;
   }
 
   if (args.dry) {
     console.log('Not publishing packages due to \'--dry\'');
+    if (!args.ci) {
+      await question('Press enter to quit verdaccio.');
+    }
+    killVerdaccio();
   } else {
     // Publish all built packages to the selected registry
     let otp = '';
@@ -379,6 +389,8 @@ async function main() {
       otp = await question(`Enter one-time password from your authenticator: `);
     }
     console.log(`Publishing packages to ${args.registry}`);
+
+    killVerdaccio();
 
     const toPublish = [...packages];
     while (toPublish.length > 0) {
